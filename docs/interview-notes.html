@@ -724,7 +724,8 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
 
   <h3>Infrastructure, briefly</h3>
   <p>App Runner rather than ECS Fargate, chosen against a fixed deadline: the container pipeline, private networking and IAM boundaries are all there; the ALB, target groups and task definitions are not. Being able to say when you would switch is the part that matters.</p>
-  <p>The detail worth having ready: an App Runner <strong>VPC connector routes all outbound traffic through the VPC</strong>, so once attached the service can no longer reach Cognito&rsquo;s JWKS endpoint without a NAT gateway &mdash; and token validation then fails as a timeout that looks nothing like a networking problem. One NAT in a single AZ is a deliberate cost tradeoff, with an interface endpoint for <code>cognito-idp</code> as the cheaper alternative.</p>
+  <p>The detail worth having ready: an App Runner <strong>VPC connector routes all outbound traffic through the VPC</strong>, so once attached the service cannot reach Cognito&rsquo;s JWKS endpoint by default &mdash; and token validation then fails as a timeout that looks nothing like a networking problem.</p>
+  <p>The reference answer is a NAT gateway. This stack does not have one. The API has exactly <em>one</em> destination outside the VPC, so a single interface endpoint for <code>cognito-idp</code> serves it at roughly a quarter of the cost, and the VPC has no public subnets or internet gateway at all. That is a better answer than the reference architecture for this workload, and the reasoning &mdash; enumerate what actually needs to leave, then buy only that &mdash; generalises further than the specific saving does.</p>
 </section>
 
 <section id="bugs">

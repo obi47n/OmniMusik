@@ -22,7 +22,7 @@ terraform output api_url                 # -> VITE_API_BASE_URL
 
 | Resource | Why |
 |---|---|
-| VPC, 2 public + 2 private subnets, 1 NAT | App Runner's VPC connector routes all egress through the VPC |
+| VPC, 2 private subnets, 1 interface endpoint | App Runner's VPC connector routes all egress through the VPC |
 | Cognito user pool, hosted UI domain, public app client | One client for both iOS and web; PKCE, no secret |
 | Sign in with Apple identity provider | Optional, off by default — see below |
 | RDS Postgres in private subnets | Reachable only from the app's security group |
@@ -41,12 +41,19 @@ boundaries are all still present; the orchestration boilerplate is not. It would
 change with sustained traffic, sidecars, or a need for fine-grained deployment
 control, and this VPC would carry over unchanged.
 
-**There is a NAT gateway, and it is the expensive line.** A VPC connector routes *all*
-of the service's outbound traffic through the VPC, so once attached the service can no
-longer reach Cognito's JWKS endpoint without a route to the internet — token validation
-starts timing out in a way that looks nothing like a networking problem. One NAT in a
-single AZ is a deliberate cost tradeoff; production would run one per AZ. The cheaper
-alternative is an interface VPC endpoint for `cognito-idp`.
+**There is no NAT gateway, deliberately.** A VPC connector routes *all* of the
+service's outbound traffic through the VPC, so once attached the service cannot reach
+Cognito's JWKS endpoint by default — token validation starts timing out in a way that
+looks nothing like a networking problem. The reference answer is a NAT gateway at
+~$32/month. But the API has exactly one destination outside the VPC, `cognito-idp`, so
+a single interface endpoint serves it for ~$7. Paying four times as much for
+general-purpose internet reachability that nothing uses is a default worth
+questioning.
+
+Consequently there are no public subnets and no internet gateway — nothing lives in
+them once the NAT is gone. The endpoint sits in one subnet rather than two, since an
+interface endpoint bills per ENI per hour and private DNS still resolves from the
+other AZ for a fraction of a cent in cross-AZ transfer.
 
 **Sign in with Apple is optional and off by default.** It needs a Services ID, team ID,
 key ID and .p8 key, and the stack has to be applyable without them. Cognito's own email
@@ -84,14 +91,20 @@ Rough monthly, us-east-1, idle:
 
 | Item | Approx |
 |---|---|
-| NAT gateway | $32 + data |
+| Interface endpoint (`cognito-idp`, 1 AZ) | ~$7 |
 | RDS db.t4g.micro, 20 GB gp3 | $12-15 |
 | App Runner 0.25 vCPU / 0.5 GB | $5-25 depending on active time |
 | CloudFront + S3 at portfolio traffic | Cents |
 
-Call it **$50-75/month** left running. The NAT gateway is the largest single line and
-the one to attack first -- an interface VPC endpoint for `cognito-idp` would remove
-the need for it.
+Call it **~$25/month** left running, down from ~$60 before the NAT gateway was
+replaced.
+
+For a portfolio the cheaper move is not to leave it running at all: `terraform apply`
+before a demo and `terraform destroy` after costs roughly $1/day. Budget 10-15 minutes
+for the apply, almost all of it RDS.
+
+If the account still qualifies for the 12-month free tier, `db.t4g.micro` may be
+covered outright — worth checking, since AWS has reworked the free-tier model.
 
 ## Caveat
 

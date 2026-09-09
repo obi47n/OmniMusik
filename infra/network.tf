@@ -1,17 +1,21 @@
 # Networking.
 #
-# App Runner itself is public and AWS-managed, but reaching a private database means
-# attaching a VPC connector -- and a VPC connector routes *all* the service's outbound
-# traffic through the VPC. That is the detail worth knowing: once it is attached, the
-# service can no longer reach Cognito's JWKS endpoint without a route to the internet,
-# and token validation starts failing with a timeout that looks nothing like a
-# networking problem.
+# App Runner is public and AWS-managed, but reaching a private database means
+# attaching a VPC connector -- and a VPC connector routes *all* of the service's
+# outbound traffic through the VPC. That is the detail worth knowing: once attached,
+# the service can no longer reach Cognito's JWKS endpoint by default, and token
+# validation starts failing as a timeout that looks nothing like a networking problem.
 #
-# Hence the NAT gateway. There is exactly one, in a single AZ, which is a deliberate
-# cost tradeoff for a portfolio deployment: a second NAT would remove a single point
-# of failure for outbound traffic and roughly double that line of the bill. In
-# production this would be one per AZ. The cheaper alternative is an interface VPC
-# endpoint for cognito-idp, which avoids NAT for that one call.
+# The reference answer is a NAT gateway. This stack does not use one, because the API
+# has exactly one destination outside the VPC: `cognito-idp`, to fetch the signing
+# keys. A NAT gateway is a general-purpose route to the whole internet at ~$32/month;
+# a single interface endpoint serves the one thing actually needed for ~$7. Paying
+# four times as much for reachability nothing uses is the kind of default worth
+# questioning.
+#
+# There are consequently no public subnets and no internet gateway: nothing lives in
+# them once the NAT is gone. Adding either back is a few lines if a bastion or general
+# egress is ever needed.
 
 data "aws_availability_zones" "available" {
   state = "available"
@@ -22,77 +26,32 @@ locals {
 }
 
 resource "aws_vpc" "main" {
-  cidr_block           = "10.0.0.0/16"
+  cidr_block = "10.0.0.0/16"
+
+  # Both required for the interface endpoint's private DNS to resolve
+  # cognito-idp.<region>.amazonaws.com to the in-VPC ENI.
   enable_dns_support   = true
   enable_dns_hostnames = true
 
   tags = { Name = "${var.project}-vpc" }
 }
 
-resource "aws_internet_gateway" "main" {
-  vpc_id = aws_vpc.main.id
-  tags   = { Name = "${var.project}-igw" }
-}
-
-resource "aws_subnet" "public" {
+# Two AZs because RDS requires a subnet group spanning at least two, even for a
+# single-AZ instance.
+resource "aws_subnet" "private" {
   count = length(local.azs)
 
   vpc_id            = aws_vpc.main.id
   cidr_block        = cidrsubnet(aws_vpc.main.cidr_block, 8, count.index)
   availability_zone = local.azs[count.index]
 
-  tags = { Name = "${var.project}-public-${local.azs[count.index]}" }
-}
-
-resource "aws_subnet" "private" {
-  count = length(local.azs)
-
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = cidrsubnet(aws_vpc.main.cidr_block, 8, count.index + 10)
-  availability_zone = local.azs[count.index]
-
   tags = { Name = "${var.project}-private-${local.azs[count.index]}" }
 }
 
-resource "aws_eip" "nat" {
-  domain = "vpc"
-  tags   = { Name = "${var.project}-nat" }
-}
-
-resource "aws_nat_gateway" "main" {
-  allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public[0].id
-  depends_on    = [aws_internet_gateway.main]
-
-  tags = { Name = "${var.project}-nat" }
-}
-
-resource "aws_route_table" "public" {
-  vpc_id = aws_vpc.main.id
-
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.main.id
-  }
-
-  tags = { Name = "${var.project}-public" }
-}
-
+# No default route. Nothing in these subnets reaches the internet, by design.
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
-
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.main.id
-  }
-
-  tags = { Name = "${var.project}-private" }
-}
-
-resource "aws_route_table_association" "public" {
-  count          = length(aws_subnet.public)
-  subnet_id      = aws_subnet.public[count.index].id
-  route_table_id = aws_route_table.public.id
+  tags   = { Name = "${var.project}-private" }
 }
 
 resource "aws_route_table_association" "private" {
@@ -101,11 +60,10 @@ resource "aws_route_table_association" "private" {
   route_table_id = aws_route_table.private.id
 }
 
-# Security groups.
+# MARK: Security groups
 #
 # The database accepts traffic only from the App Runner connector's group, by group
-# reference rather than by CIDR. Referencing the group means the rule keeps being
-# correct if the subnets are ever renumbered.
+# reference rather than by CIDR, so the rule stays correct if subnets are renumbered.
 
 resource "aws_security_group" "app_runner" {
   name        = "${var.project}-apprunner"
@@ -113,11 +71,19 @@ resource "aws_security_group" "app_runner" {
   vpc_id      = aws_vpc.main.id
 
   egress {
-    description = "All outbound, so the service can reach the database and Cognito"
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    description = "Postgres to the database"
+    from_port   = 5432
+    to_port     = 5432
+    protocol    = "tcp"
+    cidr_blocks = [aws_vpc.main.cidr_block]
+  }
+
+  egress {
+    description = "HTTPS to the Cognito interface endpoint"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [aws_vpc.main.cidr_block]
   }
 
   tags = { Name = "${var.project}-apprunner" }
@@ -137,4 +103,38 @@ resource "aws_security_group" "database" {
   }
 
   tags = { Name = "${var.project}-database" }
+}
+
+resource "aws_security_group" "vpc_endpoints" {
+  name        = "${var.project}-endpoints"
+  description = "HTTPS to interface endpoints from the application"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description     = "HTTPS from App Runner"
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.app_runner.id]
+  }
+
+  tags = { Name = "${var.project}-endpoints" }
+}
+
+# The one route out of the VPC: Cognito's JWKS, so the resource server can verify
+# token signatures.
+#
+# Placed in a single subnet rather than both. An interface endpoint bills per ENI per
+# hour, so two AZs double the cost for redundancy this deployment does not need;
+# private DNS still resolves from the other subnet, at a fraction of a cent in
+# cross-AZ transfer. Production would use both.
+resource "aws_vpc_endpoint" "cognito_idp" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.region}.cognito-idp"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [aws_subnet.private[0].id]
+  security_group_ids  = [aws_security_group.vpc_endpoints.id]
+  private_dns_enabled = true
+
+  tags = { Name = "${var.project}-cognito-idp" }
 }
