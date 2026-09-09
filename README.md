@@ -107,11 +107,11 @@ rejected. A few that shape the code:
 | Cross-source playlists, queue view | Smoke-tested in simulator |
 | Offline render export | Unit-tested |
 | Lock screen, remote commands, interruption handling | Implemented; background audio needs device confirmation |
-| Sync API — auth, accounts, playlist CRUD, conflict handling | Builds; 12 integration tests pass against H2 |
+| Sync API — auth, accounts, playlist CRUD, conflict handling | 12 integration tests pass; runs locally against the live pool. Not deployed — App Runner needs an image in ECR |
 | Web control plane — sign-in, playlist editing, conflict UX | Builds; not yet run against a live API |
 | iOS sync client — decision table, API client, conflict surfacing | Unit-tested; never run against a live service |
-| Terraform for the whole stack | `validate` passes; **never applied** |
-| iOS and web sign-in | Scaffolded — no Cognito user pool provisioned yet |
+| Terraform for the whole stack | **Applied** — 31 of 32 resources live |
+| iOS and web sign-in | Configured against a live Cognito pool; OAuth flow verified in a browser |
 | Apple Music | Deliberate stub; blocked on App Service provisioning |
 
 Tests: 50 on iOS (39 unit tests over the playlist rules, `AudioEdit` identity and
@@ -122,8 +122,11 @@ semantics, ownership isolation, and the wire format the iOS client depends on).
 The iOS UI suite runs serially by design — the shared scheme sets
 `parallelizable="NO"`, because parallel simulator clones made it flaky.
 
-Nothing is deployed. The Terraform has never been applied, no Cognito user pool
-exists, and neither client has ever completed a real sign-in.
+Partially deployed. The infrastructure is applied and Cognito is live, so both
+clients can sign in for real. The API still runs only locally: App Runner is
+`CREATE_FAILED` because no image has been pushed to ECR, which needs either CI (the
+repo has no remote yet) or Docker locally. A playlist has therefore never round-tripped
+through a deployed API.
 
 ## Requirements
 

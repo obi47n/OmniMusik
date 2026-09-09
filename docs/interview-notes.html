@@ -439,6 +439,7 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
     <li><a href="#concurrency">Concurrency</a></li>
     <li><a href="#playlists">Cross-source playlists</a></li>
     <li><a href="#sync">Sync and conflicts</a></li>
+    <li><a href="#deploying">Deploying it</a></li>
     <li><a href="#bugs">Two war stories</a></li>
     <li><a href="#defend">Decisions to defend</a></li>
     <li><a href="#limits">Honest limitations</a></li>
@@ -728,6 +729,46 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
   <p>The reference answer is a NAT gateway. This stack does not have one. The API has exactly <em>one</em> destination outside the VPC, so a single interface endpoint for <code>cognito-idp</code> serves it at roughly a quarter of the cost, and the VPC has no public subnets or internet gateway at all. That is a better answer than the reference architecture for this workload, and the reasoning &mdash; enumerate what actually needs to leave, then buy only that &mdash; generalises further than the specific saving does.</p>
 </section>
 
+<section id="deploying">
+  <h2>Deploying it</h2>
+  <p class="section-note">What <code>terraform validate</code> could not tell me. The gap between a configuration being valid and being correct is where the good answers live.</p>
+
+  <p>The stack applied to a real AWS account: 31 of 32 resources, roughly fifteen minutes, mostly RDS. Everything that failed, failed for a reason worth knowing.</p>
+
+  <div class="qa">
+    <div class="q">
+      <p class="q-prompt">Interface endpoints do not exist in every availability zone</p>
+      <p>The VPC endpoint failed with <em>&ldquo;does not support the availability zone of the subnet: subnet-05423b…&rdquo;</em> &mdash; an error that names the subnet rather than the reason. <code>cognito-idp</code> in <code>us-east-1</code> is offered in <strong>b, c and d but not a</strong>, and the hardcoded <code>private[0]</code> happened to land in a.</p>
+      <p>The fix is more interesting than swapping an index: query the endpoint service for its supported AZs and intersect that with the subnets, so the config is self-correcting in another region. A <code>lifecycle</code> precondition explains what to do if none qualify, instead of leaving the next person to decode the API error.</p>
+    </div>
+
+    <div class="q">
+      <p class="q-prompt">App Runner cannot start from a tag that does not exist</p>
+      <p>The service went <code>CREATE_FAILED</code> because ECR was empty &mdash; it pointed at <code>:latest</code> and nothing had been pushed. Terraform expressed no dependency between &ldquo;repository exists&rdquo; and &ldquo;image exists in it,&rdquo; because there isn&rsquo;t one it can see: the image comes from a build pipeline, not from Terraform.</p>
+      <p>An honest ordering problem in the design rather than a bug in the config, and the kind of thing that only shows up on a first apply.</p>
+    </div>
+
+    <div class="q">
+      <p class="q-prompt">The account&rsquo;s own guardrails blocked it first</p>
+      <p>Before any of that, every call to EC2, RDS and Cognito was refused with <em>&ldquo;explicit deny in a service control policy.&rdquo;</em> A Service Control Policy sits <strong>above</strong> IAM, so a role literally named <code>AccountFullAccessRole</code> genuinely had full IAM permissions and still could not describe an availability zone.</p>
+      <p>The tell was that <em>read-only</em> calls were denied too. A policy described as blocking &ldquo;creation of new chargeable resources&rdquo; has no business denying <code>Describe</code>, which meant the name and the content did not match and the spend limit was not the lever.</p>
+    </div>
+
+    <div class="q">
+      <p class="q-prompt">Cognito&rsquo;s default email sender is development-only</p>
+      <p>Sign-up succeeded and the account sat <code>UNCONFIRMED</code> because the verification code never arrived. <code>COGNITO_DEFAULT</code> sends from a domain Gmail distrusts, is capped at <strong>50 emails per day</strong> for the whole account, and reports nothing when delivery fails. Production needs SES; for one user, <code>admin-confirm-sign-up</code> is the pragmatic answer.</p>
+    </div>
+  </div>
+
+  <h3>Two things worth saying unprompted</h3>
+  <p><strong>The SPA error responses are an authentication fix, not a routing nicety.</strong> CloudFront rewrites 403 and 404 to <code>/index.html</code> because the app uses client-side routing and S3 has no object at <code>/callback</code> &mdash; which is the OAuth redirect URI. Without them, finishing sign-in lands on an XML access-denied page. It breaks auth specifically, not some rare deep link.</p>
+  <p><strong>CI holds no AWS key.</strong> GitHub Actions federates through OIDC into a role only this repository can assume, and that role can push images, publish the web client and trigger a rollout &mdash; deliberately not change infrastructure. A leaked static key is the usual way a personal AWS account gets drained; there isn&rsquo;t one to leak.</p>
+
+  <h3>And one about cost, which is a design question</h3>
+  <p>The reference answer to &ldquo;App Runner needs to reach Cognito through a VPC connector&rdquo; is a NAT gateway: a general-purpose route to the entire internet, at ~$32/month, bought to serve exactly one hostname. Enumerating what genuinely needs to leave the VPC gave a single interface endpoint at ~$7, no public subnets and no internet gateway. Idle cost went from ~$60/month to ~$25.</p>
+  <p>For a project with no users the cheaper move is still not running it: apply before a demo, destroy after, about $1/day. The Terraform and the CI are what a reviewer reads.</p>
+</section>
+
 <section id="bugs">
   <h2>Two war stories</h2>
   <p class="section-note">For &ldquo;tell me about a difficult bug.&rdquo; Both are real, and both have a clean diagnostic arc.</p>
@@ -813,13 +854,13 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
     <div class="row"><div class="status ok">Smoke-tested</div><div class="row-body"><strong>Studio and waveform rendering, unified library, universal search fan&#8209;out.</strong> Driven for real by a five&#8209;case XCUITest suite on an iOS&nbsp;18 simulator, all passing: sample tracks persist and list, tapping a track starts playback and docks the mini player, the Studio presents and renders its signal chain (which means waveform analysis runs without trapping), and a search produces Apple Music&rsquo;s unavailability note (which means the fan&#8209;out completed and failure isolation held).</div></div>
     <div class="row"><div class="status warn">Not yet verified</div><div class="row-body"><strong>Correctness, as distinct from execution.</strong> The smoke suite proves these subsystems run and reach the screen. It does not prove the waveform matches the audio, that effects sound right, or that trim boundaries land on the correct samples. Say &ldquo;smoke&#8209;tested,&rdquo; not &ldquo;tested.&rdquo;</div></div>
     <div class="row"><div class="status warn">Fixed, needs device check</div><div class="row-body"><strong>Background audio on lock.</strong> The built <code>Info.plist</code> now carries <code>UIBackgroundModes</code> as an array containing <code>audio</code>, confirmed in both simulator and device builds. Confirming the audio actually keeps playing is a device test.</div></div>
-    <div class="row"><div class="status warn">Scaffolded only</div><div class="row-body"><strong>Authentication.</strong> The interface, Cognito implementation, Keychain store, and account screen exist and compile. No user pool has been created yet, so nothing has ever signed in. The configuration ships as placeholders and the UI says so.</div></div>
+    <div class="row"><div class="status ok">Deployed and verified</div><div class="row-body"><strong>Authentication.</strong> A real Cognito user pool is live and both clients point at it. The web client&rsquo;s Sign In was driven in a browser through to Cognito&rsquo;s Hosted UI with a valid client ID, a registered redirect URI and <code>code_challenge_method=S256</code> &mdash; a login form rather than an error page is the proof every parameter is right. An account exists and is confirmed.</div></div>
     <div class="row"><div class="status blocked">Blocked externally</div><div class="row-body"><strong>MusicKit / Apple Music.</strong> The developer account is too new for the App Service to be enabled. <code>AppleMusicSource</code> is a deliberate stub reporting &ldquo;not connected&rdquo;; the provider slot exists and returns nothing. This is worth mentioning unprompted &mdash; it explains the stub better than the stub does.</div></div>
     <div class="row"><div class="status ok">Smoke-tested</div><div class="row-body"><strong>Cross&#8209;source playlists and the queue view.</strong> Creating a playlist from the library and opening it is driven end to end by a UI test, and the playlist rules have unit coverage.</div></div>
     <div class="row"><div class="status ok">Unit-tested</div><div class="row-body"><strong>Offline render export.</strong> Covered for identity export, rate stretching (a 0.5x export must not be truncated to the source length), trimmed range, empty range rejection, and refusal of Apple Music tracks. Not yet listened to &mdash; the tests assert duration, not that it sounds right.</div></div>
-    <div class="row"><div class="status ok">Tested, not deployed</div><div class="row-body"><strong>Sync API.</strong> Spring Boot 4 on Java 21. Twelve integration tests pass against H2, covering the conflict paths, ownership isolation, and the exact wire strings the iOS client needs. Never run against Postgres or a real Cognito pool.</div></div>
-    <div class="row"><div class="status warn">Builds, not integrated</div><div class="row-body"><strong>Web control plane.</strong> React + TypeScript, compiles clean. Has never talked to a running API, and no sign-in has ever completed, because no user pool exists.</div></div>
-    <div class="row"><div class="status warn">Validated, never applied</div><div class="row-body"><strong>Terraform.</strong> <code>validate</code> passes and it is formatted. Applying it needs AWS credentials and spends real money. Expect the first apply to surface what validation cannot: RDS engine availability in-region, a globally-taken Cognito domain prefix, App Runner quotas.</div></div>
+    <div class="row"><div class="status warn">Runs locally, not deployed</div><div class="row-body"><strong>Sync API.</strong> Twelve integration tests pass against H2. Runs locally against the live pool: health UP, 401 without a token, correct CORS. <strong>Not yet deployed</strong> &mdash; App Runner is CREATE_FAILED because ECR holds no image, so it has never run against Postgres.</div></div>
+    <div class="row"><div class="status warn">Runs locally</div><div class="row-body"><strong>Web control plane.</strong> Configured against the live pool and reaching a local backend. The full playlist round trip through a deployed API has still never happened.</div></div>
+    <div class="row"><div class="status ok">Applied</div><div class="row-body"><strong>Terraform.</strong> 31 of 32 resources live in a real account: VPC, RDS Postgres, Cognito, ECR, S3 and CloudFront. Only App Runner is outstanding, and for a reason that is not a config defect. Two failures on the first apply are written up above.</div></div>
     <div class="row"><div class="status todo">Planned</div><div class="row-body"><strong>Deployment and demo materials.</strong></div></div>
   </div>
 
