@@ -32,3 +32,19 @@ Secrets.xcconfig
 # Scratch: sandbox shell cannot delete files, so discards land here
 _to_delete/
 .commit-msg-*.txt
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform.lock.hcl
+
+# Node
+node_modules/
+dist/
+.env.local
+
+# Maven
+target/
