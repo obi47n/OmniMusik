@@ -43,6 +43,20 @@ final class PlaylistEntity {
     /// a relationship.
     var entriesData: Data
 
+    /// The server version this device last successfully matched, or nil if this
+    /// playlist has never been uploaded.
+    ///
+    /// Sync decisions are made from this rather than from timestamps. Clocks on two
+    /// devices disagree, and an edit made offline can carry a later timestamp than
+    /// the server state it is actually behind, so comparing dates would be guesswork.
+    var syncedVersion: Int?
+
+    /// Whether there are edits here that have not been uploaded.
+    ///
+    /// Set on every local mutation and cleared only by a successful sync. A new
+    /// playlist starts true because it exists nowhere else yet.
+    var hasLocalChanges: Bool = true
+
     init(
         id: UUID = UUID(),
         name: String,
@@ -55,6 +69,8 @@ final class PlaylistEntity {
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.entriesData = (try? JSONEncoder().encode(entries)) ?? Data()
+        self.syncedVersion = nil
+        self.hasLocalChanges = true
     }
 }
 
@@ -86,10 +102,26 @@ extension PlaylistEntity {
         )
     }
 
-    /// Writes a mutated domain value back onto the row.
+    /// Writes a mutated domain value back onto the row, marking it for upload.
     func apply(_ playlist: Playlist) {
         name = playlist.name
         entries = playlist.entries
         updatedAt = playlist.updatedAt
+        hasLocalChanges = true
+    }
+
+    /// Adopts the server's copy after a successful sync, leaving nothing to upload.
+    func adoptRemote(name: String, entries: [PlaylistEntry], updatedAt: Date, version: Int) {
+        self.name = name
+        self.entries = entries
+        self.updatedAt = updatedAt
+        self.syncedVersion = version
+        self.hasLocalChanges = false
+    }
+
+    /// Records that the local copy is now what the server holds.
+    func markSynced(version: Int) {
+        syncedVersion = version
+        hasLocalChanges = false
     }
 }

@@ -15,6 +15,7 @@ struct OmniMusikApp: App {
     @State private var libraryStore: LibraryStore
     @State private var auth: AuthController
     @State private var playlistStore: PlaylistStore
+    @State private var syncService: PlaylistSyncService
 
     /// Built explicitly rather than via `.modelContainer(for:)` so the same
     /// container can be handed to `LocalMusicSource`, which needs its own context.
@@ -47,9 +48,15 @@ struct OmniMusikApp: App {
 
         // The provider is the only Cognito-aware object in the app; everything
         // else sees `AuthController` and the vendor-neutral types behind it.
-        _auth = State(initialValue: AuthController(
-            provider: CognitoAuthProvider(configuration: .unconfigured)
-        ))
+        let auth = AuthController(provider: CognitoAuthProvider(configuration: .unconfigured))
+        _auth = State(initialValue: auth)
+
+        // The API takes a token provider rather than the controller itself, so the
+        // refresh rule stays in one place and the client holds no session state.
+        let api = OmniMusikAPI(baseURL: APIConfiguration.baseURL) {
+            try await auth.validAccessToken()
+        }
+        _syncService = State(initialValue: PlaylistSyncService(container: container, api: api))
     }
 
     var body: some Scene {
@@ -60,6 +67,7 @@ struct OmniMusikApp: App {
                 .environment(libraryStore)
                 .environment(auth)
                 .environment(playlistStore)
+                .environment(syncService)
         }
         .modelContainer(container)
     }
