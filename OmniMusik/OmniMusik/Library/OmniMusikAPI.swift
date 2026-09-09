@@ -86,6 +86,19 @@ final class OmniMusikAPI {
 
     var isConfigured: Bool { baseURL != nil }
 
+    /// The server's identity, used to decide whether recorded versions still mean
+    /// anything. See `SyncEpochRule`.
+    func syncEpoch() async throws -> String {
+        let response: SyncEpochResponse = try await send(
+            path: "/api/v1/sync/epoch", method: "GET", body: Optional<UpsertPlaylistBody>.none
+        )
+        return response.epoch
+    }
+
+    private struct SyncEpochResponse: Decodable {
+        let epoch: String
+    }
+
     func listPlaylists() async throws -> [APIPlaylist] {
         try await send(path: "/api/v1/playlists", method: "GET", body: Optional<UpsertPlaylistBody>.none)
     }

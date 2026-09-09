@@ -120,6 +120,17 @@ extension PlaylistEntity {
     }
 
     /// Records that the local copy is now what the server holds.
+    /// Forgets the server version this row believes it matched.
+    ///
+    /// Used when the server turns out to have a different history from the one those
+    /// versions came from. The playlist then looks exactly like one created here and
+    /// never uploaded, so it is pushed rather than treated as deleted -- which is the
+    /// whole point, since the alternative is losing it.
+    func forgetRemoteHistory() {
+        syncedVersion = nil
+        hasLocalChanges = true
+    }
+
     func markSynced(version: Int) {
         syncedVersion = version
         hasLocalChanges = false

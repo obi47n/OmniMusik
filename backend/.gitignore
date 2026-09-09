@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# The local H2 database. On disk so a rebuild stops emptying it, which means it
+# is now a real file that must not be committed.
+data/

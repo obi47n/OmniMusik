@@ -46,10 +46,12 @@ final class PlaylistSyncService {
 
     private let context: ModelContext
     private let api: OmniMusikAPI
+    private let epochStore: SyncEpochStore
 
-    init(container: ModelContainer, api: OmniMusikAPI) {
+    init(container: ModelContainer, api: OmniMusikAPI, epochStore: SyncEpochStore = SyncEpochStore()) {
         self.context = ModelContext(container)
         self.api = api
+        self.epochStore = epochStore
     }
 
     var isConfigured: Bool { api.isConfigured }
@@ -71,6 +73,12 @@ final class PlaylistSyncService {
 
             let locals = (try? context.fetch(FetchDescriptor<PlaylistEntity>())) ?? []
             let localIDs = Set(locals.map(\.id))
+
+            // Asked before the decision table, because the table cannot answer it.
+            // A version number only means something inside the history that issued
+            // it, and "the server does not have this" reads as a deletion only if
+            // this is the same server that once did.
+            await reconcileEpoch(against: locals)
 
             var pushed = 0
             var pulled = 0
@@ -130,6 +138,33 @@ final class PlaylistSyncService {
         } catch {
             status = .failed((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
         }
+    }
+
+    /// Discards recorded versions when they came from a different server history.
+    ///
+    /// Deliberately tolerant of failure. A server too old to have this endpoint is
+    /// the one this shipped against, and refusing to sync with it would trade a rare
+    /// hazard for a certain outage -- so an unreachable epoch leaves the previous
+    /// behaviour exactly as it was.
+    private func reconcileEpoch(against locals: [PlaylistEntity]) async {
+        guard let serverEpoch = try? await api.syncEpoch() else { return }
+
+        let decision = SyncEpochRule.decide(
+            stored: epochStore.stored,
+            server: serverEpoch,
+            deviceHasSyncedPlaylists: locals.contains { $0.syncedVersion != nil }
+        )
+
+        if decision == .discardRecordedVersions {
+            for entity in locals where entity.syncedVersion != nil {
+                entity.forgetRemoteHistory()
+            }
+            try? context.save()
+        }
+
+        // Recorded either way: after this sync, whatever happens, the versions this
+        // device holds are this server's.
+        epochStore.record(serverEpoch)
     }
 
     /// Uploads one playlist and records the version the server assigned.

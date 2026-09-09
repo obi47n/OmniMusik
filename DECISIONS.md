@@ -316,6 +316,42 @@ now reported only for a sync somebody asked for; failures and conflicts show eit
 way, because both mean edits are not where the person thinks they are, which is true
 regardless of who started it.
 
+## A version number only means something inside the history that issued it
+
+Found the hard way. The local backend ran on in-memory H2, so every rebuild emptied
+the database -- and a rebuild is what happens constantly. The phone would then list
+playlists, find none, and read that as N deletions: `PlaylistSync` returns
+`deleteLocal` for a playlist the device synced at version 7 that the server no longer
+has. Correct, so long as the absence is a deletion. Against a database that was
+replaced, restored, or restarted, the same absence means those versions were never
+that server's, and honouring it destroys playlists nobody deleted.
+
+Nothing in the version numbers can tell those apart, which is why it is a separate
+question asked before the decision table rather than another row in it.
+
+The server now publishes an **epoch**: one persisted random value that changes exactly
+when its history does. A client storing a different value knows its recorded versions
+describe a history this server never had, forgets them, and pushes -- so every
+playlist looks like one created locally and never uploaded. Deliberately not a
+timestamp or a counter: it needs no ordering, only difference, and a random value
+cannot collide with a meaningful one after a restore.
+
+**Unverifiable is treated as replaced.** A device upgrading from a build with no
+epochs holds versions and no way to say where they came from. It re-uploads, because
+the two mistakes are not the same size: re-uploading a playlist the server already
+has costs a request and produces a conflict a person can resolve, while deleting one
+it does not have costs the playlist and nothing brings it back.
+
+**Accepted cost.** After a restore from backup, a server that still holds the same
+playlist ids meets clients whose recorded versions are gone, and `(remote .some,
+synced nil)` is `conflict` -- so a restore produces a conflict per playlist rather
+than a silent merge. Noisy, and correct: a restored database genuinely is a second
+history under the same identity, and that is a person's call.
+
+The local database moved to a file in the same change. "In-memory so it starts with no
+infrastructure" was a real benefit, but a file needs no more infrastructure and does
+not make every rebuild destructive.
+
 ## Rejected features
 
 - **Stems / source separation.** A machine-learning project wearing a tab.
