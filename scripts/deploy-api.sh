@@ -49,8 +49,13 @@ DB_HOST=$(aws rds describe-db-instances --region "$REGION" \
   --query "DBInstances[?DBInstanceIdentifier=='$PROJECT-postgres'].Endpoint.Address" --output text)
 DB_SECRET=$(aws secretsmanager list-secrets --region "$REGION" \
   --query "SecretList[?starts_with(Name,'$PROJECT/database')].ARN" --output text)
+# The pool is "<project>-users", not "<project>". The first deployment looked up the
+# wrong name, got nothing, and shipped an issuer URI with no pool id on the end --
+# every token then failed as "unable to resolve issuer", which the client reported
+# as a bare 401. The guard below now refuses to deploy an empty value; it did not
+# exist when that first service was created.
 POOL_ID=$(aws cognito-idp list-user-pools --max-results 60 --region "$REGION" \
-  --query "UserPools[?Name=='$PROJECT'].Id" --output text)
+  --query "UserPools[?Name=='$PROJECT-users'].Id" --output text)
 # The web client's own domain, if one has been put in front of CloudFront: the
 # distribution lists it as an alias. Empty until then.
 CUSTOM_ORIGINS=$(aws cloudfront list-distributions \
