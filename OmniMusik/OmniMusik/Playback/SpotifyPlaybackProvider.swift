@@ -57,6 +57,10 @@ final class SpotifyPlaybackProvider: NSObject, PlaybackProvider {
     /// starts as soon as the connection lands rather than being dropped.
     private var pendingPlayURI: String?
 
+    /// Resumed by the connection delegates. `connect()` is delegate-driven, so this
+    /// is what lets callers await it.
+    private var connectionWaiters: [CheckedContinuation<Bool, Never>] = []
+
     init(accessToken: @escaping () async throws -> String) {
         self.accessToken = accessToken
         super.init()
@@ -101,6 +105,36 @@ final class SpotifyPlaybackProvider: NSObject, PlaybackProvider {
         playing = false
     }
 
+    /// Establishes the remote connection without bringing Spotify to the foreground.
+    ///
+    /// `connect()` succeeds silently whenever the Spotify app is alive, even in the
+    /// background — which is the difference between OmniMusik owning the controls and
+    /// bouncing the person into another app on every track. It fails when Spotify is
+    /// not running at all, and only then is `authorizeAndPlayURI` needed.
+    ///
+    /// Worth calling when the app becomes active, so the connection already exists by
+    /// the time somebody taps a track.
+    @discardableResult
+    func connectIfPossible() async -> Bool {
+        guard Self.isSpotifyInstalled else { return false }
+        if appRemote.isConnected { return true }
+        guard let token = try? await accessToken() else { return false }
+
+        appRemote.connectionParameters.accessToken = token
+        appRemote.connect()
+
+        return await withCheckedContinuation { continuation in
+            connectionWaiters.append(continuation)
+        }
+    }
+
+    /// Resumes everyone waiting on a connection attempt, exactly once each.
+    private func settleConnectionWaiters(_ connected: Bool) {
+        let waiters = connectionWaiters
+        connectionWaiters = []
+        for waiter in waiters { waiter.resume(returning: connected) }
+    }
+
     func play() async throws {
         guard let uri = currentURI else { return }
 
@@ -109,13 +143,20 @@ final class SpotifyPlaybackProvider: NSObject, PlaybackProvider {
         // missing rather than the token being old.
         appRemote.connectionParameters.accessToken = try await accessToken()
 
+        // Try the quiet path first: if Spotify is running at all, this connects
+        // without a foreground switch and playback is driven entirely from here.
+        if !appRemote.isConnected {
+            await connectIfPossible()
+        }
+
         if appRemote.isConnected {
             appRemote.playerAPI?.play(uri, callback: nil)
             playing = true
             lastReportedAt = Date()
         } else {
-            // Not connected: this both wakes the Spotify app and starts the track.
-            // The connection lands asynchronously in appRemoteDidEstablishConnection.
+            // Spotify is not running, so there is nothing to connect to. This wakes
+            // it, which does switch apps -- unavoidable, and the only time it should
+            // happen. Once connected, subsequent tracks take the path above.
             //
             // The completion reports whether Spotify could be started at all, which
             // is the one failure worth surfacing here: not installed, or installed
@@ -167,6 +208,7 @@ extension SpotifyPlaybackProvider: SPTAppRemoteDelegate {
         MainActor.assumeIsolated {
             appRemote.playerAPI?.delegate = self
             appRemote.playerAPI?.subscribe(toPlayerState: nil)
+            settleConnectionWaiters(true)
 
             // A play requested before the connection existed.
             if let uri = pendingPlayURI {
@@ -183,6 +225,7 @@ extension SpotifyPlaybackProvider: SPTAppRemoteDelegate {
             pendingPlayURI = nil
             playing = false
             lastReportedAt = nil
+            settleConnectionWaiters(false)
         }
     }
 
@@ -190,6 +233,7 @@ extension SpotifyPlaybackProvider: SPTAppRemoteDelegate {
         MainActor.assumeIsolated {
             playing = false
             lastReportedAt = nil
+            settleConnectionWaiters(false)
         }
     }
 }

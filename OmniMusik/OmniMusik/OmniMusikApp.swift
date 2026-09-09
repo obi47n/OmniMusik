@@ -18,6 +18,8 @@ struct OmniMusikApp: App {
     @State private var syncService: PlaylistSyncService
     @State private var connections: SourceConnectionCenter
     private let spotify: SpotifySource
+    @State private var spotifyProvider: SpotifyPlaybackProvider?
+    @Environment(\.scenePhase) private var scenePhase
 
     /// Built explicitly rather than via `.modelContainer(for:)` so the same
     /// container can be handed to `LocalMusicSource`, which needs its own context.
@@ -84,9 +86,19 @@ struct OmniMusikApp: App {
                     // Spotify playback needs a token from the connected source. Done
                     // here rather than in the coordinator so the coordinator keeps no
                     // knowledge of how a token is obtained.
-                    coordinator.attachSpotifyProvider(
-                        SpotifyPlaybackProvider { try await spotify.accessTokenForPlayback() }
-                    )
+                    let provider = SpotifyPlaybackProvider {
+                        try await spotify.accessTokenForPlayback()
+                    }
+                    coordinator.attachSpotifyProvider(provider)
+                    spotifyProvider = provider
+                    await provider.connectIfPossible()
+                }
+                .onChange(of: scenePhase) { _, phase in
+                    // SPTAppRemote drops its connection when the app backgrounds.
+                    // Re-establishing it on return means the first track someone taps
+                    // plays in place rather than bouncing them into Spotify.
+                    guard phase == .active else { return }
+                    Task { await spotifyProvider?.connectIfPossible() }
                 }
         }
         .modelContainer(container)
