@@ -193,15 +193,36 @@ final class SpotifyPlaybackProvider: NSObject, PlaybackProvider {
         playing = false
     }
 
+    /// Stops playback but **keeps the remote connection**.
+    ///
+    /// The coordinator calls this on the outgoing provider at every handoff, so
+    /// disconnecting here tore the connection down the moment an MP3 took over. iOS
+    /// then suspends the idle Spotify app, `connect()` fails next time, and the only
+    /// way back is `authorizeAndPlayURI` — which switches apps. Every single
+    /// crossing from local audio to Spotify paid that price.
+    ///
+    /// Holding the connection open keeps the Spotify app resident, so returning to a
+    /// Spotify track is silent. The connection is only surrendered when the person
+    /// disconnects the service, which is `releaseConnection`.
     func stop() {
         appRemote.playerAPI?.pause(nil)
-        if appRemote.isConnected { appRemote.disconnect() }
         currentURI = nil
         pendingPlayURI = nil
         loadedDuration = 0
         lastReportedPosition = 0
         lastReportedAt = nil
         playing = false
+    }
+
+    /// Actually surrenders the remote connection.
+    ///
+    /// Deliberately not part of `stop()`: ending a track and ending the relationship
+    /// with the Spotify app are different things, and conflating them is what made
+    /// every handoff expensive.
+    func releaseConnection() {
+        stop()
+        if appRemote.isConnected { appRemote.disconnect() }
+        settleConnectionWaiters(false)
     }
 
     func seek(to time: TimeInterval) async {

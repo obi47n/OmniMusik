@@ -81,6 +81,9 @@ final class PlaybackCoordinator {
     /// is simply absent rather than present-and-failing.
     func attachSpotifyProvider(_ provider: SpotifyPlaybackProvider?) {
         spotifyProvider?.onTrackFinished = nil
+        // Replacing the provider is the one place the old connection is genuinely
+        // finished with, so it is released rather than left dangling.
+        spotifyProvider?.releaseConnection()
         spotifyProvider = provider
         provider?.onTrackFinished = { [weak self] in
             self?.advanceAfterCompletion()
