@@ -117,19 +117,6 @@ struct OmniMusikApp: App {
                     Task { await spotifyProvider?.connectIfPossible() }
                 }
 
-                if coordinator.isHandingOffToSpotify {
-                    HandoffView()
-                        .transition(.opacity)
-                        .zIndex(2)
-                        .task {
-                            // A backstop only. The normal exit is backgrounding; this
-                            // covers a wake that fails and never switches at all,
-                            // which would otherwise leave the overlay up forever.
-                            try? await Task.sleep(for: .seconds(4))
-                            coordinator.endHandoffTransition()
-                        }
-                }
-
                 if isLaunching {
                     LaunchView { withAnimation(.smooth(duration: 0.28)) { isLaunching = false } }
                         .transition(.opacity)

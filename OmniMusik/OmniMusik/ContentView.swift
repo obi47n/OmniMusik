@@ -35,6 +35,24 @@ struct ContentView: View {
         .sheet(isPresented: $showingNowPlaying) {
             NowPlayingView()
         }
+        // Presented here rather than in the App's Scene body. Reading an @Observable
+        // property inside a Scene does not reliably register with observation, so the
+        // flag flipped and nothing re-rendered -- the transition simply never
+        // appeared. A View body tracks it correctly.
+        .overlay {
+            if coordinator.isHandingOffToSpotify {
+                HandoffView()
+                    .transition(.opacity)
+                    .task {
+                        // Backstop only: the normal exit is backgrounding, handled in
+                        // OmniMusikApp. This covers a wake that fails and never
+                        // switches, which would otherwise strand the overlay.
+                        try? await Task.sleep(for: .seconds(4))
+                        coordinator.endHandoffTransition()
+                    }
+            }
+        }
+        .animation(.smooth(duration: 0.25), value: coordinator.isHandingOffToSpotify)
         .alert(
             "Playback Problem",
             isPresented: Binding(
