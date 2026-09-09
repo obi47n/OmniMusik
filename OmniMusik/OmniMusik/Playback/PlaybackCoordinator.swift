@@ -137,6 +137,10 @@ final class PlaybackCoordinator {
             isPlaying = true
             startTicking()
             publishNowPlaying()
+
+            // Prepare the next provider while this track plays, so a source change
+            // at the boundary does not stall or bounce into another app.
+            warmUpcomingProviderIfNeeded()
         } catch {
             present(error)
         }
@@ -219,6 +223,23 @@ final class PlaybackCoordinator {
         case .spotify:
             return spotifyProvider
         }
+    }
+
+    /// Warms the Spotify connection when a Spotify track is next in the queue.
+    ///
+    /// Establishing the remote connection takes a moment, and if the Spotify app is
+    /// not running it needs a foreground switch. Doing it while the *current* track
+    /// is still playing makes the handoff at the track boundary silent: by the time
+    /// the queue reaches the Spotify track the connection already exists, so play()
+    /// takes its quiet path instead of waking Spotify.
+    ///
+    /// Nothing can make it silent when Spotify is not running at all — no API lets a
+    /// background app launch another one invisibly.
+    private func warmUpcomingProviderIfNeeded() {
+        let next = queueIndex + 1
+        guard next < queue.count, queue[next].source == .spotify else { return }
+        guard let spotifyProvider else { return }
+        Task { await spotifyProvider.connectIfPossible() }
     }
 
     private func start(_ track: Track) async {

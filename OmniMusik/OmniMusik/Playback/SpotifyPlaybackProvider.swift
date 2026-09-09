@@ -125,6 +125,16 @@ final class SpotifyPlaybackProvider: NSObject, PlaybackProvider {
 
         return await withCheckedContinuation { continuation in
             connectionWaiters.append(continuation)
+
+            // A deadline, because connect() is delegate-driven and there is no
+            // guarantee a delegate ever fires -- Spotify not running is the obvious
+            // case. Without this, play() waits forever, which is a worse failure
+            // than switching apps: nothing happens and nothing explains why.
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(3))
+                guard let self else { return }
+                self.settleConnectionWaiters(self.appRemote.isConnected)
+            }
         }
     }
 

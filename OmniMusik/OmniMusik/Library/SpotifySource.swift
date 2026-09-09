@@ -291,15 +291,46 @@ final class SpotifySource: NSObject, MusicSource, ConnectableSource {
         }
         switch http.statusCode {
         case 200...299:
-            return try JSONDecoder().decode(Response.self, from: data)
+            do {
+                return try JSONDecoder().decode(Response.self, from: data)
+            } catch {
+                // A decode failure on a 200 means Spotify's shape changed, not that
+                // the request was wrong. Saying so saves chasing the wrong thing.
+                throw MusicSourceError.requestFailed(.spotify, "Unexpected response shape: \(error)")
+            }
         case 401:
             throw MusicSourceError.notAuthorized(.spotify)
         default:
-            throw MusicSourceError.requestFailed(.spotify, "Status \(http.statusCode)")
+            // Spotify explains every failure in the body. Reporting only the status
+            // code throws away the one piece of information that identifies the
+            // cause, which is how a 400 becomes a guessing game.
+            let detail = Self.describe(errorBody: data) ?? "no detail"
+            throw MusicSourceError.requestFailed(.spotify, "\(http.statusCode) — \(detail) [\(url.absoluteString)]")
         }
     }
 
     // MARK: - Wire types
+
+    /// Spotify returns either `{"error": {"status": …, "message": …}}` or the OAuth
+    /// shape `{"error": "…", "error_description": "…"}` depending on the endpoint.
+    private static func describe(errorBody data: Data) -> String? {
+        struct APIError: Decodable {
+            struct Inner: Decodable { let message: String? }
+            let error: Inner?
+        }
+        struct OAuthError: Decodable {
+            let error: String?
+            let error_description: String?
+        }
+        if let parsed = try? JSONDecoder().decode(APIError.self, from: data),
+           let message = parsed.error?.message {
+            return message
+        }
+        if let parsed = try? JSONDecoder().decode(OAuthError.self, from: data) {
+            return [parsed.error, parsed.error_description].compactMap { $0 }.joined(separator: ": ")
+        }
+        return String(data: data, encoding: .utf8).map { String($0.prefix(200)) }
+    }
 
     private struct TokenResponse: Decodable {
         let access_token: String
