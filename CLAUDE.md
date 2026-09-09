@@ -28,7 +28,7 @@ OmniMusik/   iOS app (Swift, SwiftUI, SwiftData, AVAudioEngine)
 backend/     Spring Boot 4 sync API (Java 21, H2 locally, Postgres in prod)
 web/         React + TypeScript control plane (Vite)
 infra/       Terraform: Cognito, RDS, ECR, ECS (Express Mode), CloudFront
-docs/        Interview study notes
+docs/        System design (diagrams), the wiki of URLs and identifiers, interview notes
 ```
 
 Build commands, since the toolchain here is not discoverable:
@@ -172,7 +172,7 @@ Smoke-tested in simulator by `OmniMusikUITests` (12 cases): waveform rendering,
 unified library, search fan-out, cross-source playlists end to end, queue view,
 account screen.
 
-Unit-tested by `OmniMusikTests` (60 cases): playlist rules, `AudioEdit` identity and
+Unit-tested by `OmniMusikTests` (74 cases): playlist rules, `AudioEdit` identity and
 Codable round trips, `PlaylistEntry` coding, offline renderer timeline arithmetic, the
 sync decision table, source connection states, and the queue-advance rule.
 The renderer suite is `.serialized` — parallel offline engines sharing one directory
@@ -191,6 +191,13 @@ most one per subtree. SwiftUI also labels a `Menu` "More" and puts the image
 identifier on the child, so name such controls explicitly. The element hierarchy in
 the `.xcresult` bundle is the fastest way to diagnose a query that should match and
 does not.
+
+## Reference documents
+
+`docs/wiki/` is the operational wiki: every URL, identifier, role, command and cost,
+and the order to tear things down in. `docs/system-design.html` is the system design
+document with diagrams, published at https://claude.ai/code/artifact/140c4904-8d3b-42ac-ab08-b67a45d5d6c4.
+Keep both current when infrastructure changes.
 
 ## Interview notes
 

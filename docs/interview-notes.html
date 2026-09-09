@@ -537,7 +537,6 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
         <tr><td>Library</td><td><code>MusicSource</code> and implementations, SwiftData persistence, file&#8209;owning storage, import, <code>LibraryStore</code>.</td></tr>
         <tr><td>Search</td><td><code>SearchService</code> &mdash; concurrent fan&#8209;out across sources.</td></tr>
         <tr><td>Studio</td><td>Effects UI, waveform analysis, <code>OfflineRenderer</code> for baking an edit into a file.</td></tr>
-        <tr><td>Studio</td><td>Effects UI, waveform analysis and rendering.</td></tr>
         <tr><td>Auth</td><td><code>AuthProvider</code> interface, Cognito implementation, Keychain token store.</td></tr>
       </tbody>
     </table>
@@ -831,7 +830,7 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
 
     <div class="q">
       <p class="q-prompt">Features deliberately rejected</p>
-      <p><strong>Stems / source separation</strong> &mdash; a machine&#8209;learning project wearing a tab. <strong>BPM and key detection</strong> &mdash; would require real analysis, and showing invented values is worse than showing nothing. <strong>Uploading local audio to a server</strong> &mdash; turns a music tool into a file&#8209;hosting service with the storage bill and licensing questions that implies. <strong>Spotify</strong> &mdash; deferred, not rejected: its SDK needs a custom dev client and its own OAuth flow to prove the same architectural point the protocols already prove.</p>
+      <p><strong>Stems / source separation</strong> &mdash; a machine&#8209;learning project wearing a tab. <strong>BPM and key detection</strong> &mdash; would require real analysis, and showing invented values is worse than showing nothing. <strong>Uploading local audio to a server</strong> &mdash; turns a music tool into a file&#8209;hosting service with the storage bill and licensing questions that implies. <strong>Spotify&rsquo;s Web Playback SDK</strong> &mdash; rejected, not deferred: it would make the web client a real player for exactly one source, and &ldquo;playback is iOS-only except Spotify&rdquo; is a line with no principled answer behind it. Spotify itself was added as a third source, and adding it touched no existing source or provider.</p>
     </div>
   </div>
 </section>
@@ -841,7 +840,7 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
   <p class="section-note">Prepared answers for &ldquo;what would you do differently.&rdquo; Volunteering these reads as judgment; being caught out by them does not.</p>
 
   <h3>Test coverage is real but narrow</h3>
-  <p>62 tests pass: 39 iOS unit tests (playlist rules, <code>AudioEdit</code> identity, Codable round trips, the renderer&rsquo;s timeline arithmetic, the sync decision table), 11 iOS UI tests driving each subsystem end to end, and 12 backend integration tests over the sync semantics.</p>
+  <p>103 tests pass: 74 iOS unit tests (playlist rules, <code>AudioEdit</code> identity, Codable round trips, the renderer&rsquo;s timeline arithmetic, the sync decision table and epoch, source connection states, the queue-advance rule, the drag reorder), 12 iOS UI tests driving each subsystem end to end, and 17 backend integration tests over the sync semantics and the epoch.</p>
   <p>What is <strong>not</strong> covered: the generation counter and the trim arithmetic inside <code>LocalPlaybackProvider</code>, which need an engine to exercise and are the two places a bug would be both likely and invisible. Nor is anything about how the audio actually sounds &mdash; the export tests assert duration, not fidelity. Describe this as &ldquo;the domain logic is tested and the subsystems are smoke-tested&rdquo;, which is true, rather than &ldquo;it has tests&rdquo;, which invites the wrong follow-up.</p>
 
   <h3>Effects will never work on Apple Music</h3>
@@ -850,8 +849,8 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
   <h3>Simulator is not device</h3>
   <p>The smoke suite runs on an iOS&nbsp;18 simulator. Audio routing, interruption handling, and background behaviour all differ on real hardware, and the background&#8209;audio fix in particular can only be confirmed on a device with a physical lock button. Be precise about which parts have run on device and which have only run in the simulator &mdash; the status ledger is the source of truth.</p>
 
-  <h3>Single-device by design, so far</h3>
-  <p>Everything persists locally through SwiftData. Nothing syncs until the backend exists, so &ldquo;how do you handle conflicts&rdquo; is currently a design answer rather than an implemented one. Say so.</p>
+  <h3>Sync is automatic, and conflicts are a person&rsquo;s call</h3>
+  <p>Playlists sync between phone and web through the deployed API without a button: a debounced push after local edits, a pull on foreground, a flush on background. The scheduler holds no queue &mdash; the dirty flag on each row is the queue, so a missed trigger delays an edit and cannot lose one. Conflicts are surfaced, never auto-resolved. Say that the epoch exists because a replaced server once looked like N deletions.</p>
 </section>
 
 <section id="status">

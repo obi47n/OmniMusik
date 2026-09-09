@@ -1,7 +1,8 @@
 # OmniMusik
 
-An iOS music client that unifies Apple Music and locally owned audio into a single
-library, queue, and search — with a real-time effects chain for local files.
+An iOS music client that unifies Apple Music, Spotify and locally owned audio into a
+single library, queue, search and playlists — with a real-time effects chain for
+local files.
 
 > **Status:** active development. iOS local playback, the effects chain, cross-source
 > playlists, universal search, and offline export are implemented; the sync API and
@@ -17,7 +18,7 @@ library, queue, and search — with a real-time effects chain for local files.
 | `backend/` | Spring Boot 4 sync API — [README](backend/README.md) |
 | `web/` | React + TypeScript control plane — [README](web/README.md) |
 | `infra/` | Terraform for Cognito, RDS, ECR, ECS, CloudFront — [README](infra/README.md) |
-| `docs/` | Interview study notes |
+| `docs/` | [System design](docs/system-design.html) with diagrams, the [wiki](docs/wiki/Home.md) of URLs and identifiers, and interview study notes |
 
 ## Why this project is interesting
 
@@ -114,11 +115,12 @@ rejected. A few that shape the code:
 | iOS and web sign-in | Configured against a live Cognito pool; OAuth flow verified in a browser |
 | Apple Music | Deliberate stub; blocked on App Service provisioning |
 
-Tests: 72 on iOS (60 unit tests over the playlist rules, `AudioEdit` identity and
+Tests: 86 on iOS (74 unit tests over the playlist rules, `AudioEdit` identity and
 Codable round trips, the renderer's timeline arithmetic, the sync decision table,
-source connection states and the queue-advance rule, plus 12 UI tests driving each
-subsystem end to end) and 13 on the backend (sync semantics, ownership isolation, and
-the wire format the iOS client depends on).
+the sync epoch, source connection states, the queue-advance rule and the drag
+reorder, plus 12 UI tests driving each subsystem end to end) and 17 on the backend
+(sync semantics, ownership isolation, the epoch, and the wire format the iOS client
+depends on).
 
 The iOS UI suite runs serially by design — the shared scheme sets
 `parallelizable="NO"`, because parallel simulator clones made it flaky.
@@ -157,7 +159,13 @@ simulator. They are excluded from Release builds.
 
 ## Deferred
 
-Spotify integration · Android
+Android · Spotify's Web Playback SDK in the browser
 
-Spotify is deferred rather than rejected: its SDK needs a custom dev client and its
-own OAuth flow to prove the same architectural point the protocols already prove.
+Android is out because Apple Music has no playback SDK there. The Web Playback SDK
+is a deliberate rejection rather than a gap: it would make the web client a real
+player for exactly one source, and "playback is iOS-only except Spotify" is a line
+with no principled answer behind it. See `DECISIONS.md`.
+
+## Where everything is
+
+Every URL, identifier, role and command lives in the [wiki](docs/wiki/Home.md).

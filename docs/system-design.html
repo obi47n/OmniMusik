@@ -1,0 +1,945 @@
+<title>OmniMusik System Design</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    /* The app's own palette (Theme.swift), shared with the field guide so the
+       document set reads as one thing. Neutrals lean violet, not grey. */
+    --ground: #faf9fc;
+    --surface: #ffffff;
+    --raised: #f3f1f8;
+    --line: #e4e0ec;
+    --ink: #1a1820;
+    --ink-2: #56515f;
+    --ink-3: #857f92;
+    --accent: #6d28d9;
+    --accent-soft: #f1e9fe;
+    --warn: #b45309;
+    --warn-soft: #fdf3e3;
+
+    --display: "Archivo", system-ui, -apple-system, sans-serif;
+    --body: "Public Sans", system-ui, -apple-system, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0e0e10;
+      --surface: #1a1a1e;
+      --raised: #232329;
+      --line: #2e2e36;
+      --ink: #ebebeb;
+      --ink-2: #a5a2ad;
+      --ink-3: #6f6b78;
+      --accent: #b57bff;
+      --accent-soft: #241b33;
+      --warn: #e0a35c;
+      --warn-soft: #2a2015;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0e0e10;
+    --surface: #1a1a1e;
+    --raised: #232329;
+    --line: #2e2e36;
+    --ink: #ebebeb;
+    --ink-2: #a5a2ad;
+    --ink-3: #6f6b78;
+    --accent: #b57bff;
+    --accent-soft: #241b33;
+    --warn: #e0a35c;
+    --warn-soft: #2a2015;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16.5px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 1fr;
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 22px 110px;
+  }
+
+  @media (min-width: 1040px) {
+    .shell { grid-template-columns: 200px minmax(0, 1fr); gap: 52px; padding: 0 36px 130px; }
+  }
+
+  /* ---------- Rail ---------- */
+
+  .rail { display: none; }
+
+  @media (min-width: 1040px) {
+    .rail { display: block; position: sticky; top: 0; align-self: start; padding-top: 96px; max-height: 100vh; overflow-y: auto; }
+  }
+
+  .rail-title {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 12px;
+  }
+
+  .rail ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+
+  .rail a {
+    display: block;
+    font-family: var(--display);
+    font-size: 13px;
+    line-height: 1.35;
+    color: var(--ink-2);
+    text-decoration: none;
+    padding: 5px 0 5px 11px;
+    border-left: 2px solid var(--line);
+  }
+
+  .rail a:hover, .rail a:focus-visible { color: var(--accent); border-left-color: var(--accent); }
+
+  /* ---------- Masthead ---------- */
+
+  header.masthead { padding: 72px 0 34px; border-bottom: 1px solid var(--line); }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+
+  h1 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: clamp(34px, 5.5vw, 50px);
+    line-height: 1.04;
+    letter-spacing: -0.022em;
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+
+  .standfirst { font-size: 18px; color: var(--ink-2); margin: 0; max-width: 62ch; }
+
+  /* ---------- Sections ---------- */
+
+  section { padding-top: 56px; scroll-margin-top: 24px; }
+
+  h2 {
+    font-family: var(--display);
+    font-weight: 650;
+    font-size: 26px;
+    letter-spacing: -0.015em;
+    line-height: 1.2;
+    margin: 0 0 6px;
+    text-wrap: balance;
+  }
+
+  .note {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--ink-3);
+    margin: 0 0 22px;
+    max-width: 70ch;
+  }
+
+  h3 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 18px;
+    letter-spacing: -0.008em;
+    margin: 32px 0 8px;
+  }
+
+  p { margin: 0 0 15px; max-width: 70ch; }
+  ul { margin: 0 0 15px; padding-left: 20px; max-width: 70ch; }
+  li { margin-bottom: 7px; }
+  strong { font-weight: 600; color: var(--ink); }
+  em { color: var(--ink-2); }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: var(--raised);
+    padding: 1.5px 5px;
+    border-radius: 4px;
+  }
+
+  pre.code {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.7;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    margin: 0 0 18px;
+    color: var(--ink-2);
+  }
+
+  /* ---------- Figures ----------
+     Diagrams sit on a light surface in both themes. Mermaid picks its own text and
+     line colours, and they are chosen for a light ground; painting the ground
+     ourselves keeps every label legible without fighting the renderer. */
+  figure {
+    margin: 18px 0 26px;
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 18px 18px 12px;
+    overflow-x: auto;
+  }
+
+  figure pre.mermaid { margin: 0; background: transparent; }
+
+  figcaption {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: #56515f;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid #e4e0ec;
+    max-width: 78ch;
+  }
+
+  /* ---------- Tables ---------- */
+
+  .scroller { overflow-x: auto; margin: 0 0 20px; }
+
+  table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 14.5px; }
+
+  th, td {
+    text-align: left;
+    padding: 9px 14px 9px 0;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+
+  th {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: 11.5px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  td:first-child { color: var(--ink-2); white-space: nowrap; padding-right: 22px; }
+  td.wrap { white-space: normal; }
+
+  /* ---------- Callouts ---------- */
+
+  .callout {
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 9px 9px 0;
+    padding: 14px 17px;
+    margin: 0 0 20px;
+    max-width: 74ch;
+  }
+
+  .callout .label {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 5px;
+  }
+
+  .callout p { margin: 0; max-width: none; }
+  .callout p + p { margin-top: 10px; }
+
+  .callout.caution { background: var(--warn-soft); border-left-color: var(--warn); }
+  .callout.caution .label { color: var(--warn); }
+
+  footer {
+    margin-top: 64px;
+    padding-top: 22px;
+    border-top: 1px solid var(--line);
+    color: var(--ink-3);
+    font-size: 14px;
+  }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="shell">
+
+<nav class="rail" aria-label="Sections">
+  <div class="rail-title">Contents</div>
+  <ol>
+    <li><a href="#context">1 · System context</a></li>
+    <li><a href="#protocols">2 · The two protocols</a></li>
+    <li><a href="#ios">3 · iOS architecture</a></li>
+    <li><a href="#playback">4 · Playing a track</a></li>
+    <li><a href="#handoff">5 · The Spotify boundary</a></li>
+    <li><a href="#data">6 · Data model</a></li>
+    <li><a href="#sync">7 · Sync</a></li>
+    <li><a href="#auth">8 · Authentication</a></li>
+    <li><a href="#deploy">9 · Deployment topology</a></li>
+    <li><a href="#cicd">10 · Delivery pipeline</a></li>
+    <li><a href="#contracts">11 · Contracts between components</a></li>
+    <li><a href="#failures">12 · Failure modes</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<header class="masthead">
+  <div class="eyebrow">System design · OmniMusik</div>
+  <h1>OmniMusik System Design</h1>
+  <p class="standfirst">
+    How the pieces fit: an iOS client that unifies three music sources it does not
+    equally control, a sync API, a web control plane, and the AWS that runs them.
+    Each section is a diagram, then what the diagram cannot show — the reason it is
+    shaped that way.
+  </p>
+</header>
+
+<!-- ============================================================ -->
+<section id="context">
+  <h2>1 · System context</h2>
+  <p class="note">Who talks to whom. Solid lines carry data OmniMusik owns; dashed lines are commands sent to audio OmniMusik never touches.</p>
+
+  <figure>
+<pre class="mermaid">
+flowchart LR
+    person((Listener))
+    subgraph phone["iPhone"]
+        ios["OmniMusik iOS"]
+        spotifyApp["Spotify app"]
+        sysPlayer["Apple Music\n(system player)"]
+        files[("Owned MP3s\nSwiftData + files")]
+    end
+    subgraph browser["Browser"]
+        web["OmniMusik Web\n(control plane)"]
+    end
+    subgraph aws["AWS · us-east-1"]
+        api["Sync API\nSpring Boot on ECS"]
+        db[("Postgres\nRDS")]
+        cognito["Cognito\nuser pool"]
+        cdn["CloudFront + S3"]
+    end
+    spotifyWeb["Spotify Web API"]
+
+    person --> ios
+    person --> web
+    ios --> files
+    ios -. "play / pause / seek\n(SPTAppRemote)" .-> spotifyApp
+    ios -. "play / pause\n(MusicKit, stubbed)" .-> sysPlayer
+    ios -- "catalogue, library" --> spotifyWeb
+    ios -- "playlists, versions" --> api
+    web -- "playlists, versions" --> api
+    cdn --> web
+    api --> db
+    ios -- "OAuth2 + PKCE" --> cognito
+    web -- "OAuth2 + PKCE" --> cognito
+    api -. "JWKS" .-> cognito
+</pre>
+    <figcaption>Fig. 1 — Context. Audio for two of the three sources plays in a process OmniMusik does not own. Everything awkward downstream follows from that one fact.</figcaption>
+  </figure>
+
+  <p>
+    The client is the product; the server is a convenience for it. Owned files never
+    leave the phone — uploading them was rejected as a feature, since it turns a music
+    tool into a file host with a storage bill and licensing questions. The API holds
+    <em>playlists</em>: ordered lists of references to tracks, plus enough of a
+    snapshot to display them without asking anyone.
+  </p>
+
+  <div class="callout">
+    <span class="label">The constraint everything answers to</span>
+    <p>
+      Apple Music audio is DRM-protected and decoded by a system player; Spotify audio
+      is decoded by the Spotify app. Neither hands out samples. Effects therefore exist
+      for owned files only, and the domain model says so — <code>TrackSource.supportsAudioEffects</code>
+      is <code>false</code> for both streaming sources — rather than leaving it as a comment
+      somebody will one day read as a to-do.
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="protocols">
+  <h2>2 · The two protocols</h2>
+  <p class="note">The centre of the design. Two questions that look like one question and are not.</p>
+
+  <figure>
+<pre class="mermaid">
+classDiagram
+    class MusicSource {
+        <<protocol>>
+        +source: TrackSource
+        +isAvailable() Bool
+        +allTracks() [Track]
+        +search(query) [Track]
+        +track(forSourceID) Track?
+    }
+    class PlaybackProvider {
+        <<protocol>>
+        +source: TrackSource
+        +rendersAudioInProcess: Bool
+        +load(track)
+        +play() / pause() / stop()
+        +seek(to)
+        +currentTime / duration
+    }
+    class ConnectableSource {
+        <<protocol>>
+        +connectionState
+        +connect() / disconnect()
+    }
+    class LocalMusicSource
+    class AppleMusicSource
+    class SpotifySource
+    class LocalPlaybackProvider {
+        AVAudioEngine graph
+        rendersAudioInProcess = true
+    }
+    class SpotifyPlaybackProvider {
+        SPTAppRemote
+        rendersAudioInProcess = false
+    }
+    class PlaybackCoordinator {
+        queue, queueIndex
+        routes on track.source
+    }
+
+    MusicSource <|.. LocalMusicSource
+    MusicSource <|.. AppleMusicSource
+    MusicSource <|.. SpotifySource
+    ConnectableSource <|.. AppleMusicSource
+    ConnectableSource <|.. SpotifySource
+    PlaybackProvider <|.. LocalPlaybackProvider
+    PlaybackProvider <|.. SpotifyPlaybackProvider
+    PlaybackCoordinator o-- PlaybackProvider : one per source
+</pre>
+    <figcaption>Fig. 2 — <code>MusicSource</code> answers "where does this track come from"; <code>PlaybackProvider</code> answers "how is it played". They are implemented per source but are not the same thing.</figcaption>
+  </figure>
+
+  <p>
+    The obvious design is one <code>Service</code> type that browses <em>and</em> plays.
+    It is wrong because the two capabilities do not line up:
+  </p>
+  <ul>
+    <li>A lapsed Apple Music subscription still lets you browse the catalogue but not play it — <strong>browsable, not playable</strong>.</li>
+    <li>A provider can play a track its source no longer lists — a playlist entry whose catalogue entry has been withdrawn.</li>
+    <li>Spotify can be <em>connected</em> for browsing (a web token) while <em>playback</em> is unavailable (the app is not installed, or is suspended).</li>
+  </ul>
+  <p>
+    Merged, one interface would have to lie about at least one of those states.
+    Separate, each reports its own truth and the coordinator composes them.
+  </p>
+  <p>
+    <code>ConnectableSource</code> is the third protocol, added when Spotify arrived:
+    per-service authorisation, distinct from <code>AuthProvider</code>, which owns the
+    OmniMusik account itself. Local files implement neither — they need no account.
+  </p>
+  <p>
+    The test of the split was adding Spotify. It touched no existing source and no
+    existing provider: two new types conforming to two existing protocols, plus a
+    one-case addition to the <code>TrackSource</code> enum on all three codebases.
+  </p>
+</section>
+
+<!-- ============================================================ -->
+<section id="ios">
+  <h2>3 · iOS architecture</h2>
+  <p class="note">Layers, and the one rule about what each may import.</p>
+
+  <figure>
+<pre class="mermaid">
+flowchart TB
+    subgraph UI["UI · SwiftUI"]
+        library["LibraryView"]
+        playlists["PlaylistsView · PlaylistDetailView"]
+        search["SearchView"]
+        nowPlaying["NowPlaying · MiniPlayer · Queue"]
+        studio["Studio (effects, waveform)"]
+        account["AccountView"]
+    end
+    subgraph App["App services · @Observable, @MainActor"]
+        coordinator["PlaybackCoordinator\nqueue · routing · now playing"]
+        libraryStore["LibraryStore\nmerges 1 reactive + N fetched sources"]
+        playlistStore["PlaylistStore\nsingle write path"]
+        searchService["SearchService\nfan-out, cancellation, debounce"]
+        syncSched["PlaylistSyncScheduler\nwhen to sync"]
+        syncSvc["PlaylistSyncService\nwhat a sync does"]
+        connections["SourceConnectionCenter"]
+        auth["AuthController"]
+    end
+    subgraph Providers["Playback"]
+        local["LocalPlaybackProvider\nAVAudioEngine"]
+        spot["SpotifyPlaybackProvider\nSPTAppRemote"]
+    end
+    subgraph Sources["Library sources"]
+        localSrc["LocalMusicSource\nSwiftData"]
+        spotSrc["SpotifySource\nWeb API + PKCE"]
+        appleSrc["AppleMusicSource\nstub"]
+    end
+    subgraph Domain["Domain · no framework imports"]
+        track["Track · TrackSource"]
+        playlist["Playlist · PlaylistEntry"]
+        edit["AudioEdit"]
+        rules["PlaylistSync · SyncEpochRule · QueueAdvance\npure decision functions"]
+    end
+    infra["OmniMusikAPI · CognitoAuthProvider · Keychain · NowPlayingCenter · AudioSessionObserver"]
+
+    UI --> App
+    coordinator --> Providers
+    libraryStore --> Sources
+    searchService --> Sources
+    playlistStore --> Sources
+    syncSvc --> infra
+    auth --> infra
+    App --> Domain
+    Providers --> Domain
+    Sources --> Domain
+</pre>
+    <figcaption>Fig. 3 — Dependencies point downward only. <code>Domain/</code> imports nothing from Apple's frameworks, which is what makes its decision functions testable without a simulator and what ports to another platform.</figcaption>
+  </figure>
+
+  <h3>The asymmetry worth knowing</h3>
+  <p>
+    Local tracks come from SwiftData's <code>@Query</code> and stay live as imports
+    happen. Remote sources are fetched into <code>LibraryStore</code> on demand. The
+    unified library is therefore a merge of <strong>one reactive source and N fetched
+    ones</strong>. Routing local tracks through the same manual refresh would trade
+    real reactivity for a uniformity that helps only the code. The asymmetry is the
+    honest shape of the problem.
+  </p>
+
+  <h3>Pure decisions, pulled out of the plumbing</h3>
+  <p>
+    Three rules live as pure functions in <code>Domain/</code> because the code around
+    them cannot be exercised in a test: <code>PlaylistSync.decide</code> (what one
+    playlist needs, given three inputs), <code>SyncEpochRule.decide</code> (whether
+    recorded versions can be trusted at all), and <code>QueueAdvance.nextPlayableIndex</code>
+    (where the queue goes when a track cannot start). Each is a handful of lines, each
+    has a failure mode that would be silent, and each is covered by a small table of
+    cases.
+  </p>
+</section>
+
+<!-- ============================================================ -->
+<section id="playback">
+  <h2>4 · Playing a track</h2>
+  <p class="note">The request path on the phone. The coordinator is the only object that knows more than one provider exists.</p>
+
+  <figure>
+<pre class="mermaid">
+sequenceDiagram
+    actor U as Listener
+    participant V as View
+    participant C as PlaybackCoordinator
+    participant P as Provider for track.source
+    participant Q as Previous provider
+    participant N as NowPlayingCenter (lock screen)
+
+    U->>V: tap a row
+    V->>C: play(track, in: queue, edits:)
+    C->>Q: stop()
+    Note over C,Q: onTrackFinished is suppressed for<br/>coordinator-initiated stops, or the queue<br/>would advance mid-handoff
+    C->>P: load(track, edit)
+    P-->>C: duration
+    C->>P: play()
+    C->>C: isPlaying = true, start position timer
+    C->>N: publish title, artwork, elapsed, rate
+    Note over N: Published on transitions only.<br/>iOS extrapolates position from elapsed + rate;<br/>publishing on the timer makes the two fight.
+    loop while playing
+        C->>P: currentTime
+        C->>V: position (trim-relative)
+    end
+    P-->>C: onTrackFinished
+    C->>C: advance queueIndex, repeat
+</pre>
+    <figcaption>Fig. 4 — Views never choose a player; providers never know about each other. The Studio's speed setting feeds the published <em>rate</em>, or the lock screen drifts from what is audible.</figcaption>
+  </figure>
+
+  <h3>Inside the local provider</h3>
+  <figure>
+<pre class="mermaid">
+flowchart LR
+    file[("AVAudioFile")] --> player["playerNode\nscheduleSegment(trim range)"]
+    player --> tp["timePitch\nspeed · pitch"]
+    tp --> eq["eqNode\n3-band"]
+    eq --> rv["reverb\nwet/dry"]
+    rv --> mix["mainMixer"] --> out(("output"))
+</pre>
+    <figcaption>Fig. 5 — The signal chain. The Studio's layout mirrors this node order. The graph is reconnected per file because sample rate and channel count vary between imports.</figcaption>
+  </figure>
+
+  <ul>
+    <li><strong>Seeking is stop-and-reschedule with a generation counter.</strong> <code>scheduleSegment</code>'s completion also fires on cancellation; without the counter every seek reads as end-of-track.</li>
+    <li><strong>Positions are trim-relative.</strong> A track trimmed to start at 0:30 reports 0:00 at its first audible sample. The UI never sees the file's absolute timeline.</li>
+    <li><strong>Parametric vs structural edits.</strong> Speed, pitch, reverb and EQ mutate live nodes. Trim changes what is scheduled and reschedules — only when the bounds actually move.</li>
+    <li><strong>The audio session is reactivated on every <code>play()</code>.</strong> Interruptions deactivate it and iOS does not hand it back; resuming against a dead session is silence with no error.</li>
+  </ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="handoff">
+  <h2>5 · The Spotify boundary</h2>
+  <p class="note">What happens when the queue crosses from a local file into Spotify — the one transition the platform makes hard.</p>
+
+  <figure>
+<pre class="mermaid">
+stateDiagram-v2
+    [*] --> LocalPlaying : local track playing
+    LocalPlaying --> Decide : next is Spotify
+    state Decide <<choice>>
+    Decide --> QuietPath : SPTAppRemote connected<br/>(Spotify resident)
+    Decide --> WakePath : not connected<br/>(Spotify suspended)
+    QuietPath --> SpotifyPlaying : playerAPI.play(uri)<br/>no app switch — works from lock screen
+    state WakePath <<choice>>
+    WakePath --> Handoff : app is in the foreground
+    WakePath --> Skip : app is backgrounded / locked<br/>iOS refuses openURL
+    Handoff --> SpotifyPlaying : transition screen,<br/>authorizeAndPlayURI → app switch
+    Skip --> NextPlayable : QueueAdvance.nextPlayableIndex<br/>silent notification names the skipped track
+    NextPlayable --> LocalPlaying
+    SpotifyPlaying --> LocalPlaying : next is local<br/>always seamless
+</pre>
+    <figcaption>Fig. 6 — The asymmetry is the tell. Spotify → local needs nothing from another process. Local → Spotify needs a process iOS may already have put to sleep.</figcaption>
+  </figure>
+
+  <p>
+    While a local file plays, Spotify produces no audio, so iOS suspends it. A
+    suspended app cannot accept an <code>SPTAppRemote</code> connection; the only way to
+    wake it is to launch it, which iOS permits only from the foreground. There is no
+    entitlement that keeps a third-party app alive, and the one state that would —
+    Spotify actively playing — is exactly what cannot be true while something else is.
+  </p>
+  <p>
+    Three fixes were attempted before this was measured, and none could have worked.
+    The logger that settled it cost twenty minutes. The design that shipped is
+    product rather than engineering: make the switch look intentional when it must
+    happen, and from the lock screen keep the music going and report what was skipped.
+  </p>
+</section>
+
+<!-- ============================================================ -->
+<section id="data">
+  <h2>6 · Data model</h2>
+  <p class="note">What the server stores, and why a playlist is one JSON document rather than a table of rows.</p>
+
+  <figure>
+<pre class="mermaid">
+erDiagram
+    APP_USER {
+        uuid id PK
+        string subject UK "Cognito sub — the identity, not the email"
+        string email "nullable; Sign in with Apple may withhold it"
+        string display_name
+        timestamptz created_at
+    }
+    PLAYLIST {
+        uuid id PK "chosen by the client, so it exists offline"
+        uuid owner_id FK
+        string name
+        text entries "JSON array of PlaylistEntry, ordered"
+        timestamptz created_at
+        timestamptz updated_at
+        bigint version "optimistic lock; a mismatch is a 409"
+    }
+    SYNC_EPOCH {
+        bigint id PK "always 1"
+        string epoch_value "random; changes when the history does"
+        timestamptz created_at
+    }
+    APP_USER ||--o{ PLAYLIST : owns
+</pre>
+    <figcaption>Fig. 7 — Three tables, owned by Flyway. The ownership index on <code>playlist.owner_id</code> serves every query the API makes, and ownership is also what isolates one account's data from another's.</figcaption>
+  </figure>
+
+  <h3>One entry</h3>
+  <pre class="code">{
+  "id":       "3f1c…",              // the entry's own identity — duplicates are allowed
+  "source":   "spotify",            // TrackSource raw value: local | appleMusic | spotify
+  "sourceID": "4uLU6hMCjMI75M1A2tKUQC",
+  "title":    "…", "artist": "…", "duration": 214.0   // snapshot
+}</pre>
+
+  <p>
+    A playlist must hold an MP3, an Apple Music track and a Spotify track in one
+    ordered list, and those live in different worlds: local tracks are SwiftData
+    rows; streaming tracks are never persisted, because caching someone else's
+    catalogue serves stale copies of their data. So an entry is the
+    <strong><code>(source, sourceID)</code> pair</strong> that identifies a track
+    anywhere, plus a <strong>snapshot</strong> of what to display.
+  </p>
+  <ul>
+    <li><strong>Not a relationship</strong> — it could only point at local tracks, and relationships are unordered while order is the point.</li>
+    <li><strong>Not <code>Track</code> values</strong> — a streaming track is only meaningful while that service answers.</li>
+    <li><strong>The snapshot is the part to defend.</strong> Without it a playlist of streaming tracks becomes blank rows the moment the subscription lapses. A playlist should describe itself without a server's permission.</li>
+    <li><strong>The accepted cost:</strong> entries are opaque to SQL. "Which playlists contain this track" needs a scan or a secondary index.</li>
+  </ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="sync">
+  <h2>7 · Sync</h2>
+  <p class="note">Three mechanisms, each answering a different failure. Read them in order: when, what, and whether the numbers mean anything.</p>
+
+  <h3>When: the scheduler holds no queue</h3>
+  <figure>
+<pre class="mermaid">
+flowchart LR
+    edit["Local edit\n(PlaylistStore.save)"] -- "onLocalChange" --> deb["debounce 2 s\n(each edit restarts it)"]
+    fg["App becomes active"] --> now["sync now\n(the moment to pull)"]
+    bg["App leaves the screen"] --> flush["flush under a\nbackground-task assertion"]
+    deb --> run
+    now --> run
+    flush --> run
+    run["PlaylistSyncService.sync(reason: .automatic)"] --> reload["store.reload()"]
+    flag[("hasLocalChanges\non every edited row\nsurvives crash, force-quit, flat battery")] -. "the real queue" .-> run
+</pre>
+    <figcaption>Fig. 8 — Nothing in the scheduler is load-bearing for correctness. A missed trigger delays an edit; the dirty flag in the database is what guarantees it is never lost. That is what makes aggressive coalescing safe.</figcaption>
+  </figure>
+
+  <h3>What: the decision table</h3>
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Local edits</th><th>Last synced</th><th>Server now</th><th>Decision</th></tr></thead>
+      <tbody>
+        <tr><td>any</td><td>never</td><td>absent</td><td class="wrap">Push — created here</td></tr>
+        <tr><td>no</td><td>v3</td><td>absent</td><td class="wrap">Delete locally — removed elsewhere</td></tr>
+        <tr><td>yes</td><td>v3</td><td>absent</td><td class="wrap"><strong>Conflict</strong> — re-creating what someone deleted is as wrong as discarding what they edited</td></tr>
+        <tr><td>any</td><td>never</td><td>v2</td><td class="wrap"><strong>Conflict</strong> — two histories under one id</td></tr>
+        <tr><td>no</td><td>v5</td><td>v5</td><td class="wrap">Up to date</td></tr>
+        <tr><td>yes</td><td>v5</td><td>v5</td><td class="wrap">Push</td></tr>
+        <tr><td>no</td><td>v5</td><td>v7</td><td class="wrap">Pull</td></tr>
+        <tr><td>yes</td><td>v5</td><td>v7</td><td class="wrap"><strong>Conflict</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    Versions, not timestamps: two devices' clocks disagree, and an edit made offline
+    can carry a <em>later</em> timestamp than the server state it is behind. A refused
+    write returns <code>409</code> <em>with the server's current copy in the body</em>,
+    so the client can show what differs instead of retrying blindly — which would be
+    last-write-wins wearing a seatbelt. Conflicts are never auto-resolved.
+  </p>
+
+  <h3>Whether the numbers mean anything: the epoch</h3>
+  <figure>
+<pre class="mermaid">
+sequenceDiagram
+    participant D as Device
+    participant S as Server
+    D->>S: GET /sync/epoch
+    S-->>D: { epoch: "e2" }
+    alt stored epoch == "e2"
+        D->>D: trust recorded versions
+    else stored epoch != "e2", or none stored but synced playlists exist
+        D->>D: forget every syncedVersion<br/>(rows now look "created here, never uploaded")
+    end
+    D->>D: record "e2"
+    D->>S: GET /playlists
+    S-->>D: list with versions
+    D->>D: PlaylistSync.decide per playlist
+    D->>S: PUT /playlists/{id} { expectedVersion } … as decided
+</pre>
+    <figcaption>Fig. 9 — A version number only means something inside the history that issued it. Against a replaced or restarted database, "the server does not have this" is not a deletion, and honouring it as one destroys playlists nobody deleted.</figcaption>
+  </figure>
+  <p>
+    Found in production: the local backend ran on in-memory H2, so a rebuild emptied
+    the database and the phone read the absence as N deletions. Unverifiable is
+    treated as replaced, because the two mistakes are not the same size — re-uploading
+    a playlist the server has costs a request and a resolvable conflict; deleting one
+    it does not have costs the playlist.
+  </p>
+</section>
+
+<!-- ============================================================ -->
+<section id="auth">
+  <h2>8 · Authentication</h2>
+  <p class="note">One flow, two clients, no SDK. The API validates tokens; it never sees a password.</p>
+
+  <figure>
+<pre class="mermaid">
+sequenceDiagram
+    participant C as Client (iOS or web)
+    participant H as Cognito hosted UI
+    participant A as Sync API
+    C->>C: generate code_verifier, derive code_challenge
+    C->>H: /authorize?client_id&redirect_uri&code_challenge (S256)
+    Note over C,H: iOS: ASWebAuthenticationSession<br/>web: full-page redirect to /callback
+    H-->>C: authorization code
+    C->>H: /token { code, code_verifier }
+    H-->>C: id_token, access_token, refresh_token
+    C->>C: iOS: Keychain · web: memory + refresh
+    C->>A: Authorization: Bearer access_token
+    A->>A: verify signature against cached JWKS<br/>(fetched once from the issuer)
+    A-->>C: 200, or 401 without a valid token
+</pre>
+    <figcaption>Fig. 10 — PKCE is not optional: a native binary cannot keep a client secret, so the app client is public and the verifier is what stops an intercepted code from being redeemed.</figcaption>
+  </figure>
+
+  <ul>
+    <li><strong>No AWS SDK on the phone.</strong> Amplify is a large dependency for two HTTP calls, and the web client runs the identical flow against the same pool — one mental model.</li>
+    <li><strong>Signing in is optional.</strong> Local library, effects and playback need no account; an account buys sync and the web client.</li>
+    <li><strong>The API provisions accounts on first sight of a subject claim.</strong> Identity is the <code>sub</code>, never the email — emails change and Sign in with Apple may withhold one.</li>
+    <li><strong>Another user's playlist is 404, not 403.</strong> A 403 confirms the id exists and turns the endpoint into an oracle.</li>
+    <li><strong>React StrictMode double-invokes effects</strong> and would consume the single-use code twice; the callback memoises the exchange at module level.</li>
+  </ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="deploy">
+  <h2>9 · Deployment topology</h2>
+  <p class="note">What Terraform builds, what ECS builds, and where the one script fits.</p>
+
+  <figure>
+<pre class="mermaid">
+flowchart TB
+    internet(("Internet"))
+    cf["CloudFront E21470R0DRAVCF"] --> s3[("S3 · omnimusik-web\nprivate, OAC only")]
+    internet --> cf
+    internet --> alb
+    subgraph vpc["VPC 10.0.0.0/16 · no NAT gateway"]
+        igw["Internet gateway"]
+        subgraph pub["Public subnets · 1a, 1b"]
+            alb["Application Load Balancer\ncreated by ECS Express Mode · TLS"]
+            task["Fargate task\nomnimusik-api · 0.5 vCPU / 1 GB\npublic IP · SG admits ALB:8080 only"]
+        end
+        subgraph priv["Private subnets · 1a, 1b"]
+            rds[("RDS Postgres\ndb.t4g.micro\nSG admits task SG:5432 only")]
+        end
+        alb --> task
+        task --> rds
+        task -. "pull image" .-> igw
+        task -. "JWKS" .-> igw
+    end
+    igw -.-> ecr["ECR omnimusik-api"]
+    igw -.-> cognito["Cognito us-east-1_c9yH4UiHc"]
+    task -. "logs" .-> cw["CloudWatch /ecs/omnimusik-api"]
+    sm["Secrets Manager\nomnimusik/database"] -. "DB_PASSWORD at start" .-> task
+</pre>
+    <figcaption>Fig. 11 — The API tasks are addressable but not reachable: a public address for outbound access, a security group that admits only the load balancer for inbound. That is what avoids a $32/month NAT gateway. The database is private and answers only the task group.</figcaption>
+  </figure>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Layer</th><th>Owned by</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>VPC, subnets, IGW, security groups, RDS, Secrets, ECR, Cognito, S3, CloudFront, IAM roles, ECS cluster, log group</td><td>Terraform (<code>infra/</code>)</td><td class="wrap">Everything with a resource type. Reviewable, in state, reproducible.</td></tr>
+        <tr><td>The ECS Express service</td><td><code>scripts/deploy-api.sh</code></td><td class="wrap">The AWS provider has no resource for it at any version. The script is idempotent and resolves every input by name, so it needs no state — which is what lets CI run it.</td></tr>
+        <tr><td>Load balancer, target groups, listener, the balancer's security group</td><td>ECS (Express Mode)</td><td class="wrap">Created and owned by the service. The one thing ECS does <em>not</em> do is admit its balancer into the tasks' group; that rule is Terraform's, and its absence was the first deployment's failure.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout caution">
+    <span class="label">Why this and not App Runner</span>
+    <p>
+      App Runner was the original choice and the reasoning still holds: a managed
+      runtime that takes an image and a port, over hand-wiring the pieces above. AWS
+      closed it to new services on 2026-04-30 and this account cannot create one.
+      Express Mode is the same bargain on ECS; the move cost an afternoon and the
+      network change — App Runner brought its own public endpoint, so the VPC had no
+      public subnets or internet gateway before.
+    </p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="cicd">
+  <h2>10 · Delivery pipeline</h2>
+  <p class="note">From a commit to a running container, with no stored AWS key anywhere.</p>
+
+  <figure>
+<pre class="mermaid">
+flowchart LR
+    push["push to master"] --> ci
+    subgraph ci["CI · on every push"]
+        be["Backend\nmvn verify · 17 tests"]
+        we["Web\nnpm run build"]
+        tf["Terraform\nfmt · validate"]
+        ios["iOS · macos runner\nxcodebuild test · 86 tests"]
+    end
+    dispatch["Actions → Deploy → Run workflow"] --> oidc
+    subgraph deploy["Deploy · manual"]
+        oidc["assume omnimusik-github-deploy\nvia OIDC · repo:obi47n/OmniMusik:* only"]
+        oidc --> jib["Jib: build + push\n:latest and :sha"]
+        jib --> roll["deploy-api.sh IMAGE_TAG=sha\n→ update-express-gateway-service"]
+        oidc --> web["vite build with VITE_* vars\n→ s3 sync → invalidate /index.html"]
+    end
+    roll --> ecs["ECS rolls out\nFlyway migrates → validate → healthy"]
+</pre>
+    <figcaption>Fig. 12 — Deploys are manual and by SHA. ECS resolves the image when a deployment starts, so a moved <code>:latest</code> changes nothing; passing the commit SHA is what makes it a rollout, and rolling back is deploying an old tag.</figcaption>
+  </figure>
+
+  <ul>
+    <li><strong>Jib, not a Dockerfile.</strong> No daemon needed on the runner or on a laptop, and dependencies, resources and classes land in separate layers so a source-only change re-pushes kilobytes.</li>
+    <li><strong>The deploy role can deploy and cannot change infrastructure.</strong> A leaked static key is the usual way a personal AWS account gets drained; there is none to leak.</li>
+    <li><strong>Schema changes are files.</strong> Production runs <code>ddl-auto=validate</code>; Flyway applies <code>V&lt;n&gt;__*.sql</code> before the app starts and validate confirms the entities agree.</li>
+  </ul>
+</section>
+
+<!-- ============================================================ -->
+<section id="contracts">
+  <h2>11 · Contracts between components</h2>
+  <p class="note">The couplings that are invisible until runtime. Three codebases agree on these strings.</p>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Contract</th><th>Value</th><th>Why it is fragile</th></tr></thead>
+      <tbody>
+        <tr><td><code>TrackSource</code> on the wire</td><td><code>local</code> · <code>appleMusic</code> · <code>spotify</code></td><td class="wrap">Swift encodes string-backed enums by raw value. Java or JS naming conventions break the phone and nothing else. A backend test asserts the exact strings.</td></tr>
+        <tr><td>Entry field name</td><td><code>sourceID</code></td><td class="wrap">Swift derives coding keys from property names; <code>sourceId</code> would silently decode to nothing.</td></tr>
+        <tr><td>Timestamps</td><td>ISO-8601</td><td class="wrap">Swift's default <code>JSONDecoder</code> reads a <code>Date</code> as seconds since the 2001 Apple epoch; the client must use <code>.iso8601</code> or every date lands in 2001.</td></tr>
+        <tr><td>Write versioning</td><td><code>expectedVersion</code> → <code>409</code> + current copy</td><td class="wrap">Clients send the version they last read. A bare 409 would force a second round trip and invite a blind retry.</td></tr>
+        <tr><td>Playlist identity</td><td>Client-chosen UUID, <code>PUT /playlists/{id}</code></td><td class="wrap">Created offline, days before the server sees it; and the upload is idempotent when a response is lost.</td></tr>
+        <tr><td>Drag reorder semantics</td><td>"the dragged entry takes the target's place"</td><td class="wrap"><code>Playlist.move(entryID:onto:)</code> and <code>moveEntryOnto</code> share one definition so a drop cannot land one row short on one client and not the other.</td></tr>
+        <tr><td>Playlist tile colour</td><td>djb2 hash of the uppercased id → hue</td><td class="wrap">Reproduced on web with the same hash and an HSB→HSL conversion, so one playlist is one colour on both clients.</td></tr>
+        <tr><td>Epoch</td><td><code>GET /sync/epoch</code> → <code>{ epoch }</code></td><td class="wrap">Stable per database; per-user or per-request values would make every client re-upload on every sync.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section id="failures">
+  <h2>12 · Failure modes, and what each one taught</h2>
+  <p class="note">Every one of these was real. They are here because the design carries their scars.</p>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Symptom</th><th>Cause</th><th>Where it lives now</th></tr></thead>
+      <tbody>
+        <tr><td>Playback died on lock; lock screen looked fine</td><td class="wrap"><code>UIBackgroundModes</code> is not on Xcode's <code>INFOPLIST_KEY_*</code> whitelist; the setting resolved and was dropped from the built plist</td><td class="wrap">Explicit partial <code>Info.plist</code>. Check the output, not the input.</td></tr>
+        <tr><td>Seeking skipped to the next track</td><td class="wrap"><code>scheduleSegment</code>'s completion fires on cancellation too</td><td class="wrap">Generation counter in <code>LocalPlaybackProvider</code></td></tr>
+        <tr><td>Local → Spotify threw you into the Spotify app</td><td class="wrap">iOS suspends idle Spotify; waking it needs the foreground</td><td class="wrap">Quiet path first; transition screen; lock-screen skip via <code>QueueAdvance</code></td></tr>
+        <tr><td>Web edits never reached the phone</td><td class="wrap"><code>PlaylistStore.update</code> marked rows dirty on mere read, so every sync was a conflict</td><td class="wrap">Equality guard; four regression tests</td></tr>
+        <tr><td>Reorder "did not save" on the phone</td><td class="wrap">View held its own ordered copy, re-resolved on entry <em>count</em>, which a swap does not change</td><td class="wrap">Order derived from the store on every render</td></tr>
+        <tr><td>Restarting the dev server would have deleted the phone's playlists</td><td class="wrap">In-memory H2; absence read as deletion</td><td class="wrap">File-backed H2; the sync epoch</td></tr>
+        <tr><td>Spotify entries 400 on push</td><td class="wrap">The running jar predated <code>SPOTIFY</code> in the enum</td><td class="wrap">Deploy by SHA; the jar is not the source</td></tr>
+        <tr><td>API crash-looped on first deploy</td><td class="wrap"><code>validate</code> against a schema nothing created; then Flyway present but not started (Boot 4 needs <code>spring-boot-flyway</code>)</td><td class="wrap">Flyway + V1; verified locally before pushing</td></tr>
+        <tr><td>ECS target "unhealthy" with the app answering</td><td class="wrap">ECS creates the balancer's security group but does not admit it into the tasks' group</td><td class="wrap"><code>aws_security_group_rule.api_tasks_from_alb</code></td></tr>
+        <tr><td>Terraform apply died ten minutes in</td><td class="wrap"><code>aws login</code> credentials live in a CLI-only cache; a static export expires mid-wait</td><td class="wrap"><code>credential_process</code> config for Terraform</td></tr>
+        <tr><td>CI's iOS job failed in sixty seconds</td><td class="wrap">Destination pinned to <code>OS=18.0</code>; the runner image had moved on</td><td class="wrap">No OS pin; the deployment target is the pin</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <footer>
+    <p>Source: <code>docs/system-design.html</code>. The operational values — every URL, identifier and command — are in <code>docs/wiki/</code>. The reasoning behind each decision, with the alternatives rejected, is in <code>DECISIONS.md</code>.</p>
+  </footer>
+</section>
+
+</main>
+</div>

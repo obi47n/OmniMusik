@@ -77,10 +77,17 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode_16.app
 
       # The shared scheme disables parallel testing on purpose; see CLAUDE.md.
+      #
+      # No OS pin on the destination. The runner image ships whichever iOS runtime
+      # is current, and pinning 18.0 failed the moment it stopped being that: "iOS
+      # 18.0 is not installed", sixty seconds in, before building anything. The
+      # deployment target is what the project pins; the simulator just has to be
+      # at or above it. No xcpretty either -- it is a gem the image may not carry,
+      # and a formatter that is missing turns a green run red for nothing.
       - name: Test
         run: |
           xcodebuild test \
             -project OmniMusik/OmniMusik.xcodeproj \
             -scheme OmniMusik \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.0' \
-            | xcpretty && exit ${PIPESTATUS[0]}
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -quiet

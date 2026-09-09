@@ -17,7 +17,10 @@ The web app will be a separate React/TypeScript codebase. Nothing is literally
 shared. What ports is the domain model, which is why `Domain/` has no framework
 imports.
 
-## Scope: Apple Music only for the MVP, Spotify deferred
+## Scope: Apple Music only for the MVP, Spotify deferred (SUPERSEDED)
+
+> Spotify was added as a third source. See "Spotify: added as a third source" below.
+> Kept because the extensibility claim it makes was tested by that addition.
 
 Spotify's native iOS SDK needs a custom dev client and its own OAuth flow, roughly
 doubling the integration work for a second streaming source that proves the same
