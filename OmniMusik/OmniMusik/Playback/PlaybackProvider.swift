@@ -39,6 +39,17 @@ protocol PlaybackProvider: AnyObject {
 
     var isPlaying: Bool { get }
 
+    /// Whether this provider decodes audio inside our process.
+    ///
+    /// True for the AVAudioEngine graph; false for anything that remote-controls
+    /// another player. It decides who owns the audio session, and therefore what an
+    /// interruption notification *means*.
+    ///
+    /// When a remote provider is active, another app legitimately owns audio, and
+    /// iOS reports that to us as an interruption. Treating it as one and pausing is
+    /// how OmniMusik ends up interrupting the very playback it just started.
+    var rendersAudioInProcess: Bool { get }
+
     /// Prepare a track for playback without starting it.
     /// Throws if the track cannot be resolved or the source rejects it.
     func load(_ track: Track) async throws

@@ -100,17 +100,21 @@ final class PlaybackCoordinator {
 
     private func configureSessionHandling() {
         sessionObserver.onInterruptionBegan = { [weak self] in
-            guard let self else { return }
+            guard let self, self.ownsAudioSession else { return }
             self.wasPlayingBeforeInterruption = self.isPlaying
             self.pause()
         }
         sessionObserver.onInterruptionEnded = { [weak self] shouldResume in
-            guard let self, shouldResume, self.wasPlayingBeforeInterruption else { return }
+            guard let self, self.ownsAudioSession,
+                  shouldResume, self.wasPlayingBeforeInterruption else { return }
             Task { await self.resume() }
         }
-        // Headphones pulled: pause rather than continue out of the speaker.
+        // Headphones pulled: pause rather than continue out of the speaker. Only our
+        // own output — the Spotify app handles its own route changes, and pausing it
+        // from here would fight whatever it already did.
         sessionObserver.onOutputDisconnected = { [weak self] in
-            self?.pause()
+            guard let self, self.ownsAudioSession else { return }
+            self.pause()
         }
         sessionObserver.start()
     }
@@ -225,6 +229,16 @@ final class PlaybackCoordinator {
         }
     }
 
+    /// Whether OmniMusik is the app currently producing audio.
+    ///
+    /// Session notifications are only ours to act on when this is true. While a
+    /// remote provider is active another app owns audio by design, and iOS reports
+    /// that as an interruption — acting on it means pausing playback we deliberately
+    /// started somewhere else.
+    private var ownsAudioSession: Bool {
+        activeProvider?.rendersAudioInProcess ?? false
+    }
+
     /// Warms the Spotify connection when a Spotify track is next in the queue.
     ///
     /// Establishing the remote connection takes a moment, and if the Spotify app is
@@ -252,6 +266,15 @@ final class PlaybackCoordinator {
         // both briefly hold the audio session and the first frames get clipped.
         if let active = activeProvider, active !== provider {
             active.stop()
+
+            // Moving to a provider that renders elsewhere means giving the audio
+            // session back. Holding it while another app plays leaves two apps
+            // contending, and iOS resolves that by interrupting one of them --
+            // which arrived here as an interruption and paused the track we had
+            // just started.
+            if !provider.rendersAudioInProcess {
+                (active as? LocalPlaybackProvider)?.relinquishSession()
+            }
         }
 
         let edit = queueEdits[track.id] ?? .identity

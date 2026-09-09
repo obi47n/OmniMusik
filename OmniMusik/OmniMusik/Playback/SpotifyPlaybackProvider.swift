@@ -77,6 +77,9 @@ final class SpotifyPlaybackProvider: NSObject, PlaybackProvider {
 
     var isPlaying: Bool { playing }
 
+    /// The Spotify app decodes and outputs; this process only issues commands.
+    let rendersAudioInProcess = false
+
     var duration: TimeInterval { loadedDuration }
 
     /// Extrapolated from the last reported position.

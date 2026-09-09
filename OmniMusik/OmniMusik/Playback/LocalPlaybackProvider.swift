@@ -60,6 +60,9 @@ final class LocalPlaybackProvider: PlaybackProvider {
     private var playing = false
     var isPlaying: Bool { playing }
 
+    /// This is the engine that actually decodes audio.
+    let rendersAudioInProcess = true
+
     private var audibleLength: AVAudioFramePosition { max(0, trimEndFrame - trimStartFrame) }
     var duration: TimeInterval { sampleRate > 0 ? Double(audibleLength) / sampleRate : 0 }
 
@@ -182,6 +185,16 @@ final class LocalPlaybackProvider: PlaybackProvider {
     }
 
     func stop() { teardown() }
+
+    /// Gives the audio session back to the system.
+    ///
+    /// Called when playback moves to a provider that renders elsewhere. Holding an
+    /// active session while another app plays leaves two apps contending for it, and
+    /// iOS resolves that by interrupting somebody. `notifyOthersOnDeactivation` lets
+    /// whoever is waiting resume cleanly.
+    func relinquishSession() {
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
 
     func seek(to time: TimeInterval) async {
         guard isActive else { return }
