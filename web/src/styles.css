@@ -219,3 +219,35 @@ ul.grid {
 .back:focus-visible {
   color: var(--accent);
 }
+
+/* Drag to reorder.
+   The handle is decorative -- it marks the row as movable, but the whole row is the
+   drag surface, because a 12px target is a worse experience than the affordance is
+   worth. The arrow buttons remain the keyboard and screen-reader route; a reorder
+   that exists only as a pointer gesture is a reorder some people cannot perform. */
+.draggable-row {
+  cursor: grab;
+}
+
+.draggable-row:active {
+  cursor: grabbing;
+}
+
+.drag-handle {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  user-select: none;
+}
+
+/* The row in the air. Faded rather than hidden, so the list does not reflow under
+   the pointer and change what the drop is aimed at. */
+.draggable-row.dragging {
+  opacity: 0.4;
+}
+
+/* Where it would land. A line on the leading edge rather than a filled highlight:
+   the row is not being selected, it is being displaced. */
+.draggable-row.drop-target {
+  box-shadow: inset 3px 0 0 0 var(--accent);
+}

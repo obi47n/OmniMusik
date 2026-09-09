@@ -175,6 +175,33 @@ extension Playlist {
         touch()
     }
 
+    /// Moves one entry to the position another currently occupies.
+    ///
+    /// The drag-and-drop counterpart to `move(fromOffsets:toOffset:)`. That one
+    /// speaks SwiftUI's edit-mode convention, where the destination is an insertion
+    /// point between rows; a drop names a *row*, and the two do not translate cleanly
+    /// -- SwiftUI's destination is off by one in one direction and not the other,
+    /// which is exactly the kind of arithmetic that belongs somewhere it can be
+    /// tested rather than in a view.
+    ///
+    /// The rule: the dragged entry takes the target's place. Its index is read before
+    /// the removal, so dropping the first row onto the last puts it last rather than
+    /// second-to-last -- which is what dropping something on a row looks like it
+    /// should do.
+    ///
+    /// Both identifiers are entry ids, not track ids: a playlist may legitimately
+    /// hold the same track twice, and dragging one copy must not move the other.
+    mutating func move(entryID: UUID, onto targetID: UUID) {
+        guard entryID != targetID,
+              let from = entries.firstIndex(where: { $0.id == entryID }),
+              let to = entries.firstIndex(where: { $0.id == targetID })
+        else { return }
+
+        let moved = entries.remove(at: from)
+        entries.insert(moved, at: min(to, entries.count))
+        touch()
+    }
+
     mutating func rename(to newName: String) {
         let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed != name else { return }

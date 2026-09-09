@@ -275,3 +275,81 @@ struct PlaylistTests {
         #expect(resolved.displayDuration == 200)
     }
 }
+
+/// Dropping one entry onto another.
+///
+/// Separate from the offsets-based reorder because they are different conventions,
+/// and the difference is a single off-by-one that only shows up when dragging
+/// downward -- silent, plausible-looking, and exactly what a test is for.
+@Suite("Playlist drag reorder")
+struct PlaylistDragReorderTests {
+
+    private func playlist(_ titles: [String]) -> Playlist {
+        var playlist = Playlist(name: "Set")
+        for title in titles {
+            playlist.append(Track(
+                title: title,
+                artist: "Someone",
+                duration: 100,
+                source: .local,
+                sourceID: title
+            ))
+        }
+        return playlist
+    }
+
+    private func titles(_ playlist: Playlist) -> [String] { playlist.entries.map(\.title) }
+
+    @Test("Dragging upward puts the entry in the target's place")
+    func dragUp() {
+        var list = playlist(["A", "B", "C"])
+        list.move(entryID: list.entries[2].id, onto: list.entries[0].id)
+        #expect(titles(list) == ["C", "A", "B"])
+    }
+
+    /// The off-by-one case. Removing first shifts everything after the source down,
+    /// so an index captured afterwards would land one place short and the entry would
+    /// stop just before where it was dropped.
+    @Test("Dragging downward puts the entry in the target's place, not before it")
+    func dragDown() {
+        var list = playlist(["A", "B", "C"])
+        list.move(entryID: list.entries[0].id, onto: list.entries[2].id)
+        #expect(titles(list) == ["B", "C", "A"])
+    }
+
+    @Test("Dragging onto the neighbour swaps them")
+    func swapNeighbours() {
+        var list = playlist(["A", "B"])
+        list.move(entryID: list.entries[1].id, onto: list.entries[0].id)
+        #expect(titles(list) == ["B", "A"])
+    }
+
+    @Test("Dropping an entry on itself changes nothing, including the timestamp")
+    func dropOnSelf() {
+        var list = playlist(["A", "B"])
+        let before = list.updatedAt
+        list.move(entryID: list.entries[0].id, onto: list.entries[0].id)
+        #expect(titles(list) == ["A", "B"])
+        #expect(list.updatedAt == before)
+    }
+
+    @Test("An unknown identifier changes nothing")
+    func unknownEntry() {
+        var list = playlist(["A", "B"])
+        let before = list.updatedAt
+        list.move(entryID: UUID(), onto: list.entries[0].id)
+        #expect(titles(list) == ["A", "B"])
+        #expect(list.updatedAt == before)
+    }
+
+    /// A playlist holding the same track twice is a supported case, so the drag has
+    /// to move the copy that was dragged rather than the first one that matches.
+    @Test("Duplicate tracks move independently")
+    func duplicatesMoveIndependently() {
+        var list = playlist(["A", "B", "A"])
+        let lastA = list.entries[2].id
+        list.move(entryID: lastA, onto: list.entries[0].id)
+        #expect(list.entries[0].id == lastA)
+        #expect(titles(list) == ["A", "A", "B"])
+    }
+}

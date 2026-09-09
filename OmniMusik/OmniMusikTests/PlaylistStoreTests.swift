@@ -138,4 +138,86 @@ struct PlaylistStoreTests {
         #expect(try isDirty(playlist.id, in: container))
         #expect(store.playlist(id: playlist.id)?.trackCount == 1)
     }
+
+    // MARK: - Reordering
+
+    private func sampleTrack(_ title: String) -> Track {
+        Track(title: title, artist: "Someone", duration: 100, source: .local, sourceID: "\(title).mp3")
+    }
+
+    /// A reorder must reach disk, and the store must serve the new order back.
+    ///
+    /// This is the half of "the drag did not save" that can be tested without a
+    /// gesture. The other half was a view holding its own ordered copy of the
+    /// entries: the write below always worked, and the list drew the old order
+    /// anyway, which is indistinguishable on screen from a write that never
+    /// happened.
+    @Test("A drag reorder is persisted and read back in the new order")
+    func dragReorderPersists() throws {
+        let (store, container) = try makeStore()
+        let created = try #require(store.create(
+            named: "Set",
+            seededWith: [sampleTrack("A"), sampleTrack("B"), sampleTrack("C")]
+        ))
+
+        let entries = try #require(store.playlist(id: created.id)).entries
+        store.update(id: created.id) {
+            $0.move(entryID: entries[0].id, onto: entries[2].id)
+        }
+
+        #expect(try #require(store.playlist(id: created.id)).entries.map(\.title) == ["B", "C", "A"])
+
+        // A second store over the same container: what a relaunch would see.
+        let reopened = PlaylistStore(container: container, sources: [])
+        #expect(try #require(reopened.playlist(id: created.id)).entries.map(\.title) == ["B", "C", "A"])
+    }
+
+    /// Reordering is an edit, so it has to leave the row dirty or it never syncs --
+    /// the playlist would look right on the phone and stay wrong everywhere else.
+    @Test("A reorder marks the playlist as having unsynced changes")
+    func reorderMarksDirty() throws {
+        let (store, container) = try makeStore()
+        let created = try #require(store.create(
+            named: "Set",
+            seededWith: [sampleTrack("A"), sampleTrack("B")]
+        ))
+        try markSynced(created.id, in: container)
+
+        let entries = try #require(store.playlist(id: created.id)).entries
+        store.update(id: created.id) {
+            $0.move(entryID: entries[1].id, onto: entries[0].id)
+        }
+
+        let playlistID = created.id
+        let context = ModelContext(container)
+        var descriptor = FetchDescriptor<PlaylistEntity>(predicate: #Predicate { $0.id == playlistID })
+        descriptor.fetchLimit = 1
+        let entity = try #require(try context.fetch(descriptor).first)
+        #expect(entity.hasLocalChanges)
+    }
+
+    /// Dropping an entry on itself is a no-op, and must not mark the row dirty --
+    /// otherwise an accidental drag turns into a push and, if the server moved
+    /// meanwhile, a conflict for a change nobody made.
+    @Test("A reorder that changes nothing does not mark the playlist dirty")
+    func noOpReorderStaysClean() throws {
+        let (store, container) = try makeStore()
+        let created = try #require(store.create(
+            named: "Set",
+            seededWith: [sampleTrack("A"), sampleTrack("B")]
+        ))
+        try markSynced(created.id, in: container)
+
+        let entries = try #require(store.playlist(id: created.id)).entries
+        store.update(id: created.id) {
+            $0.move(entryID: entries[0].id, onto: entries[0].id)
+        }
+
+        let playlistID = created.id
+        let context = ModelContext(container)
+        var descriptor = FetchDescriptor<PlaylistEntity>(predicate: #Predicate { $0.id == playlistID })
+        descriptor.fetchLimit = 1
+        let entity = try #require(try context.fetch(descriptor).first)
+        #expect(!entity.hasLocalChanges)
+    }
 }

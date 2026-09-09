@@ -101,3 +101,33 @@ export function playlistTint(id: string): string {
   const hue = Number(hash % 360n)
   return `hsl(${hue}, 38%, 45%)`
 }
+
+/**
+ * Moves one entry to the position another currently occupies.
+ *
+ * The counterpart of `Playlist.move(entryID:onto:)` in the iOS client, and
+ * deliberately the same rule: the dragged entry takes the target's place, with the
+ * target's index read before the removal. Dropping the first row onto the last has to
+ * put it last on both clients -- a drop that lands one row short on the web and not
+ * on the phone is the kind of difference nobody reports as a bug and everybody
+ * notices.
+ *
+ * Pure and copying, so React sees a new array and the caller keeps the old one for
+ * the dirty check.
+ */
+export function moveEntryOnto<T extends { id: string }>(
+  entries: T[],
+  draggedID: string,
+  targetID: string,
+): T[] {
+  if (draggedID === targetID) return entries
+
+  const from = entries.findIndex((entry) => entry.id === draggedID)
+  const to = entries.findIndex((entry) => entry.id === targetID)
+  if (from < 0 || to < 0) return entries
+
+  const next = [...entries]
+  const [moved] = next.splice(from, 1)
+  next.splice(Math.min(to, next.length), 0, moved)
+  return next
+}

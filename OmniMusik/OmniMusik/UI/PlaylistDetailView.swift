@@ -23,13 +23,33 @@ struct PlaylistDetailView: View {
 
     @Query private var entities: [LocalTrackEntity]
 
-    @State private var resolved: [ResolvedEntry] = []
+    /// Live tracks, keyed by the entry that asked for them.
+    ///
+    /// A map rather than an ordered array, because order is not this view's to hold.
+    /// It used to keep `[ResolvedEntry]` in state and render straight from it, which
+    /// made the on-screen order a second copy of something the store already owned --
+    /// so a reorder wrote to the database, left the copy untouched, and the list
+    /// snapped back. It looked exactly like a change that had not been saved, and the
+    /// change had in fact been saved.
+    ///
+    /// Resolution genuinely belongs in state: it is the async fan-out's result and
+    /// cannot be recomputed synchronously. Order does not, so it is not here.
+    @State private var tracksByEntryID: [UUID: Track] = [:]
     @State private var isResolving = false
     @State private var isRenaming = false
     @State private var draftName = ""
     @State private var isAddingSongs = false
 
     private var playlist: Playlist? { store.playlist(id: playlistID) }
+
+    /// The rows, ordered by the store and filled in from whatever the sources
+    /// answered. Recomputed on every render, which is what makes a reorder appear
+    /// the moment it is written.
+    private var resolved: [ResolvedEntry] {
+        (playlist?.entries ?? []).map {
+            ResolvedEntry(entry: $0, track: tracksByEntryID[$0.id])
+        }
+    }
 
     private var editMap: [UUID: AudioEdit] {
         Dictionary(uniqueKeysWithValues: entities.map { ($0.id, $0.edit) })
@@ -75,7 +95,10 @@ struct PlaylistDetailView: View {
         }
         // Keyed on the entry count so closing the picker re-resolves whatever was
         // added, without polling.
-        .task(id: playlist?.entries.count) { await resolveEntries() }
+        // Keyed on which entries exist, not how many and not in what order. Count
+        // misses a swap; order re-runs the whole fan-out for a drag that cannot have
+        // changed a single answer.
+        .task(id: playlist.map { Set($0.entries.map(\.id)) }) { await resolveEntries() }
     }
 
     /// Offered when sync found this playlist changed in two places.
@@ -142,10 +165,38 @@ struct PlaylistDetailView: View {
                 Section {
                     ForEach(resolved) { item in
                         row(for: item, in: playlist)
+                            // Drag to reorder, without going through Edit first.
+                            //
+                            // A List's own `onMove` only offers reorder handles in
+                            // edit mode -- a long press on a row does nothing outside
+                            // it, which a UI test confirmed before this was written.
+                            // Edit mode is a poor default here anyway: it takes over
+                            // the row, so tapping a track to play it stops working
+                            // while it is on. `draggable` and `dropDestination` give
+                            // the gesture directly and leave the tap alone.
+                            //
+                            // The payload is the entry's id, not the track's. A
+                            // playlist may hold the same track twice, and dragging
+                            // one copy must not move the other.
+                            .draggable(item.entry.id.uuidString) {
+                                DragPreview(title: item.displayTitle)
+                            }
+                            .dropDestination(for: String.self) { payload, _ in
+                                guard let raw = payload.first, let dragged = UUID(uuidString: raw) else {
+                                    return false
+                                }
+                                store.update(id: playlistID) {
+                                    $0.move(entryID: dragged, onto: item.entry.id)
+                                }
+                                return true
+                            }
                     }
                     .onDelete { offsets in
                         store.update(id: playlistID) { $0.remove(atOffsets: offsets) }
                     }
+                    // Kept alongside the drag. Edit mode is the route VoiceOver's
+                    // rotor drives, and a reorder that only exists as a drag gesture
+                    // is a reorder some people cannot perform at all.
                     .onMove { offsets, destination in
                         store.update(id: playlistID) {
                             $0.move(fromOffsets: offsets, toOffset: destination)
@@ -253,11 +304,34 @@ struct PlaylistDetailView: View {
         guard let playlist else { return }
         isResolving = true
         let result = await store.resolve(playlist)
-        resolved = result
+        tracksByEntryID = Dictionary(
+            uniqueKeysWithValues: result.compactMap { entry in
+                entry.track.map { (entry.entry.id, $0) }
+            }
+        )
         isResolving = false
 
         // Correct any drifted snapshots now that sources have answered. Only
         // writes when something actually differs.
         store.refreshSnapshots(for: playlistID, from: result)
+    }
+}
+
+/// What follows the finger during a reorder.
+///
+/// A row lifted out of a list looks wrong dragged at full width over itself, and the
+/// system default -- a screenshot of the row -- carries the artwork and duration into
+/// a context where neither means anything. The title is the part that identifies what
+/// is being moved.
+private struct DragPreview: View {
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .font(.subheadline.weight(.medium))
+            .lineLimit(1)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(.thinMaterial, in: Capsule())
     }
 }

@@ -2,7 +2,13 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, ConflictError } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
-import { formatDuration, sourceLabel, type Playlist, type PlaylistEntry } from '../types'
+import {
+  formatDuration,
+  moveEntryOnto,
+  sourceLabel,
+  type Playlist,
+  type PlaylistEntry,
+} from '../types'
 
 /**
  * One playlist, editable.
@@ -24,6 +30,12 @@ export function PlaylistDetail() {
   const [conflict, setConflict] = useState<Playlist | null>(null)
   const [busy, setBusy] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+
+  // Which row is in the air, and which one it is currently over. Both are ids
+  // rather than indices: the list reorders under the pointer while a drag is in
+  // progress, so an index captured at drag start stops meaning anything.
+  const [draggingID, setDraggingID] = useState<string | null>(null)
+  const [dropTargetID, setDropTargetID] = useState<string | null>(null)
 
   const adopt = useCallback((next: Playlist) => {
     setPlaylist(next)
@@ -73,6 +85,16 @@ export function PlaylistDetail() {
     } finally {
       setBusy(false)
     }
+  }
+
+  function endDrag() {
+    setDraggingID(null)
+    setDropTargetID(null)
+  }
+
+  function dropOnto(targetID: string) {
+    if (draggingID) setEntries(moveEntryOnto(entries, draggingID, targetID))
+    endDrag()
   }
 
   function move(index: number, delta: number) {
@@ -189,7 +211,40 @@ export function PlaylistDetail() {
       ) : (
         <ul className="list">
           {entries.map((entry, index) => (
-            <li className="card" key={entry.id}>
+            <li
+              className={[
+                'card',
+                'draggable-row',
+                draggingID === entry.id ? 'dragging' : '',
+                dropTargetID === entry.id && draggingID !== entry.id ? 'drop-target' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              key={entry.id}
+              draggable
+              onDragStart={(e) => {
+                setDraggingID(entry.id)
+                // Firefox starts no drag at all unless data is set, and the effect
+                // has to say "move" or the cursor offers a copy that never happens.
+                e.dataTransfer.effectAllowed = 'move'
+                e.dataTransfer.setData('text/plain', entry.id)
+              }}
+              onDragOver={(e) => {
+                // Without this the browser refuses the drop -- silently, and the row
+                // simply springs back.
+                e.preventDefault()
+                e.dataTransfer.dropEffect = 'move'
+                if (dropTargetID !== entry.id) setDropTargetID(entry.id)
+              }}
+              onDrop={(e) => {
+                e.preventDefault()
+                dropOnto(entry.id)
+              }}
+              onDragEnd={endDrag}
+            >
+              <span className="drag-handle" aria-hidden="true">
+                ⠿
+              </span>
               <div className="card-main">
                 <div className="card-title">{entry.title}</div>
                 <div className="card-sub">
