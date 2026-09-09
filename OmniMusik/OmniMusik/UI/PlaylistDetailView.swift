@@ -19,6 +19,7 @@ struct PlaylistDetailView: View {
 
     @Environment(PlaylistStore.self) private var store
     @Environment(PlaybackCoordinator.self) private var coordinator
+    @Environment(PlaylistSyncService.self) private var sync
 
     @Query private var entities: [LocalTrackEntity]
 
@@ -65,6 +66,52 @@ struct PlaylistDetailView: View {
         .task(id: playlist?.entries.count) { await resolveEntries() }
     }
 
+    /// Offered when sync found this playlist changed in two places.
+    ///
+    /// Nothing here resolves automatically: both sides hold work somebody did, and
+    /// picking a winner silently is how an evening's edits disappear without anyone
+    /// being told. The banner names what each choice discards.
+    @ViewBuilder
+    private var conflictBanner: some View {
+        if sync.conflicts.contains(playlistID) {
+            VStack(alignment: .leading, spacing: 10) {
+                Label("Changed in two places", systemImage: "arrow.triangle.branch")
+                    .font(.subheadline.weight(.semibold))
+
+                Text("This playlist was edited here and on another device. Choose which version to keep.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 10) {
+                    Button("Use Other Device") {
+                        Task {
+                            await sync.resolveByTakingRemote(id: playlistID)
+                            store.reload()
+                            await resolveEntries()
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+
+                    Button("Keep This One") {
+                        Task {
+                            await sync.resolveByKeepingLocal(id: playlistID)
+                            store.reload()
+                            await resolveEntries()
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background(Theme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: Theme.cardRadius))
+            .padding(.horizontal, 16)
+            .padding(.bottom, 8)
+        }
+    }
+
     @ViewBuilder
     private func content(for playlist: Playlist) -> some View {
         if playlist.isEmpty {
@@ -74,6 +121,8 @@ struct PlaylistDetailView: View {
                 Text("Add tracks from the library or from search.")
             }
         } else {
+            VStack(spacing: 0) {
+            conflictBanner
             List {
                 Section {
                     ForEach(resolved) { item in
@@ -94,6 +143,7 @@ struct PlaylistDetailView: View {
                 }
             }
             .listStyle(.plain)
+            }
         }
     }
 

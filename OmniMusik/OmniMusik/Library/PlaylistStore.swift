@@ -81,8 +81,25 @@ final class PlaylistStore {
     /// are testable without a store, and never get reimplemented per view.
     func update(id: UUID, _ mutate: (inout Playlist) -> Void) {
         guard let entity = entity(for: id) else { return }
-        var playlist = entity.asPlaylist
+
+        let before = entity.asPlaylist
+        var playlist = before
         mutate(&playlist)
+
+        // Only write when something actually changed.
+        //
+        // `apply` marks the row as having unsynced edits, so writing unconditionally
+        // means merely *opening* a playlist flags it dirty -- the detail view
+        // refreshes snapshots on appear, which comes through here. The next sync then
+        // sees local edits alongside a moved server and returns .conflict, which is
+        // never auto-resolved, so changes made on another device silently stop
+        // arriving.
+        //
+        // The domain mutators are already careful not to touch `updatedAt` when
+        // nothing moved, which makes equality a reliable test. That care was being
+        // discarded one layer down.
+        guard playlist != before else { return }
+
         entity.apply(playlist)
         save()
     }
