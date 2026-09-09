@@ -197,7 +197,9 @@ final class PlaybackCoordinator {
         case .local:
             return localProvider
         case .appleMusic:
-            return nil  // week 3: AppleMusicPlaybackProvider
+            return nil  // awaiting MusicKit provisioning
+        case .spotify:
+            return nil  // awaiting SpotifyPlaybackProvider (SPTAppRemote)
         }
     }
 

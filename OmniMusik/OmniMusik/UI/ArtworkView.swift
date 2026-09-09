@@ -10,7 +10,21 @@ import UIKit
 /// mini player to the Now Playing hero, so sizing is the caller's decision.
 struct ArtworkView: View {
     let data: Data?
+
+    /// Remote artwork, for sources that hand back a URL rather than bytes.
+    /// Local data wins when both are present: it is already on disk.
+    var url: URL?
     var cornerRadius: CGFloat = 6
+
+    init(data: Data?, url: URL? = nil, cornerRadius: CGFloat = 6) {
+        self.data = data
+        self.url = url
+        self.cornerRadius = cornerRadius
+    }
+
+    init(track: Track, cornerRadius: CGFloat = 6) {
+        self.init(data: track.artworkData, url: track.artworkURL, cornerRadius: cornerRadius)
+    }
 
     var body: some View {
         Group {
@@ -18,6 +32,12 @@ struct ArtworkView: View {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
+            } else if let url {
+                AsyncImage(url: url) { image in
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Rectangle().fill(.quaternary)
+                }
             } else {
                 ZStack {
                     Rectangle().fill(.quaternary)
@@ -48,7 +68,8 @@ struct SourceBadge: View {
     private var tint: Color {
         switch source {
         case .local: Theme.accent
-        case .appleMusic: .pink  // Apple Music keeps its own identity colour
+        case .appleMusic: .pink   // Apple Music keeps its own identity colour
+        case .spotify: .green     // and so does Spotify
         }
     }
 }

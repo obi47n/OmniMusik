@@ -36,15 +36,17 @@ struct OmniMusikApp: App {
         // One source list feeds both search and the library, so a source added
         // later appears in both without being registered twice.
         let appleMusic = AppleMusicSource()
+        let spotify = SpotifySource()
         let sources: [any MusicSource] = [
             LocalMusicSource(container: container),
-            appleMusic
+            appleMusic,
+            spotify
         ]
 
         // Only sources that need an account appear here; local files have none.
         // A source added later joins both lists and shows up in the account screen
         // without that screen changing.
-        _connections = State(initialValue: SourceConnectionCenter(sources: [appleMusic]))
+        _connections = State(initialValue: SourceConnectionCenter(sources: [appleMusic, spotify]))
 
         // Playlists resolve their entries against the same source list, so a
         // source added later becomes playable inside existing playlists too.

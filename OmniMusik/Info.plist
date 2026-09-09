@@ -15,6 +15,25 @@
 	     exactly that: it permits unqualified hostnames, *.local and link-local
 	     addresses, and nothing on the public internet. Broader ATS exceptions would
 	     also allow plain HTTP to arbitrary domains, which is not the trade here. -->
+	<!-- ASWebAuthenticationSession intercepts its own callback, so Cognito needed
+	     no registered scheme. Spotify's SDK app-switches to the Spotify app, which
+	     calls back through openURL, and that does require the scheme to be declared. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.obinnaduruaku.OmniMusik</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>omnimusik</string>
+			</array>
+		</dict>
+	</array>
+	<!-- Required before canOpenURL can report whether Spotify is installed. -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>spotify</string>
+	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

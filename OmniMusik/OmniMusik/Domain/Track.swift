@@ -17,11 +17,13 @@ import Foundation
 enum TrackSource: String, Codable, Sendable, CaseIterable {
     case local
     case appleMusic
+    case spotify
 
     var displayName: String {
         switch self {
         case .local: "Local"
         case .appleMusic: "Apple Music"
+        case .spotify: "Spotify"
         }
     }
 
@@ -33,7 +35,10 @@ enum TrackSource: String, Codable, Sendable, CaseIterable {
     var supportsAudioEffects: Bool {
         switch self {
         case .local: true
-        case .appleMusic: false
+        // Spotify is the same structural case as Apple Music: SPTAppRemote
+        // remote-controls the Spotify app and exposes no samples, so there is
+        // nothing to route through the effects chain.
+        case .appleMusic, .spotify: false
         }
     }
 }
@@ -57,6 +62,14 @@ struct Track: Identifiable, Hashable, Sendable {
 
     var artworkData: Data?
 
+    /// Artwork hosted by the source, for services that hand back a URL rather than
+    /// bytes. Local files carry `artworkData` instead, extracted at import.
+    ///
+    /// Deliberately not part of anything that crosses the wire: `PlaylistEntry`
+    /// snapshots a title, artist and duration, and an expiring CDN URL is not
+    /// something to persist on a server.
+    var artworkURL: URL?
+
     init(
         id: UUID = UUID(),
         title: String,
@@ -65,7 +78,8 @@ struct Track: Identifiable, Hashable, Sendable {
         duration: TimeInterval,
         source: TrackSource,
         sourceID: String,
-        artworkData: Data? = nil
+        artworkData: Data? = nil,
+        artworkURL: URL? = nil
     ) {
         self.id = id
         self.title = title
@@ -75,6 +89,7 @@ struct Track: Identifiable, Hashable, Sendable {
         self.source = source
         self.sourceID = sourceID
         self.artworkData = artworkData
+        self.artworkURL = artworkURL
     }
 }
 
