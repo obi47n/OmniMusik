@@ -1,0 +1,101 @@
+# OmniMusik — working notes
+
+iOS app unifying Apple Music and locally owned audio into one library, queue, and
+search, with a real-time effects chain for local files.
+
+Context: a portfolio project. The owner is a software engineer targeting Apple and
+other big-tech roles, building this to anchor technical interview discussion.
+Architecture quality matters more than feature count — a well-argued abstraction is
+worth more here than another screen.
+
+## Constraints
+
+- **iOS 18 deployment target.** Do not use iOS 26+ API (`.tabViewBottomAccessory`
+  was caught once already). Check availability before reaching for anything new.
+- **Bundle ID `com.obinnaduruaku.OmniMusik`** must match the registered App ID.
+- **MusicKit is blocked** — the developer account is too new for the App Service to
+  be enabled. `AppleMusicSource` is a deliberate stub reporting "not connected".
+  Expected to clear within days.
+- **Effects can never apply to Apple Music.** That audio is DRM-protected and played
+  by a system-owned player with no sample access. This is structural, not a TODO.
+- Swift 5 language mode, SwiftData, Observation (`@Observable`, not
+  `ObservableObject`).
+
+## Architecture
+
+```
+Domain/     Track, TrackSource, AudioEdit — no framework imports, deliberately
+Playback/   PlaybackProvider protocol + LocalPlaybackProvider (AVAudioEngine)
+            PlaybackCoordinator — routes tracks to providers, owns queue
+            NowPlayingCenter, AudioSessionObserver
+Library/    MusicSource protocol + LocalMusicSource / AppleMusicSource
+            SwiftData persistence, file-owning storage, import, LibraryStore
+Search/     SearchService (concurrent fan-out), SearchView
+Studio/     Effects UI, waveform analysis and rendering
+UI/         Library, Now Playing, mini player, Theme
+```
+
+**Two protocols, deliberately separate.** `PlaybackProvider` answers "how is this
+played"; `MusicSource` answers "where do tracks come from". They do not map
+one-to-one — a source can be browsable while playback is unavailable (lapsed
+subscription), and a provider can play tracks a source no longer lists. Do not
+merge them.
+
+**Non-obvious decisions, with reasons — preserve these:**
+
+- Seeking is stop-and-reschedule with a **generation counter**. `scheduleSegment`'s
+  completion also fires on cancellation; without the counter a seek reads as
+  end-of-track and skips forward.
+- Positions in `LocalPlaybackProvider` are **trim-relative**. The UI never sees the
+  file's absolute timeline.
+- Imported files are **copied**, never referenced. Security-scoped picker URLs do
+  not survive the callback.
+- Local tracks come from `@Query` (live); remote sources are fetched into
+  `LibraryStore`. The unified library is a merge of one reactive and N fetched
+  sources. That asymmetry is intentional.
+- `MPNowPlayingInfoCenter` is published on **transitions only, never on the position
+  timer** — it extrapolates from elapsed + rate. The Studio's speed feeds the rate,
+  or the lock screen drifts from what is audible.
+- Audio session is reactivated on every `play()`, not just load — interruptions
+  deactivate it and iOS does not hand it back.
+- Effects split into **parametric** (live node mutation) and **structural** (trim,
+  requires reschedule). Only trim reschedules, only when bounds actually move.
+
+## Conventions
+
+- Comments explain *why*, not what. Long-form where a decision is non-obvious.
+- No emoji anywhere in code or docs.
+- Search results are grouped by source, never interleaved — there is no common
+  relevance scale between a filename match and Apple's catalog ranking.
+- The UI is OmniMusik's own. Do not imitate another app's interface.
+- Never fabricate data the app cannot compute (no fake BPM or key detection).
+
+## State
+
+Done: local library and import, metadata extraction, SwiftData persistence,
+AVAudioEngine playback, the effects chain, the signal-chain Studio with waveform
+rendering, lock screen and remote commands, interruption and route-change handling,
+unified library with source filtering, universal search fan-out.
+
+Not done: offline render export, MusicKit integration, Omni playlists (cross-source),
+queue view, tests, README and demo materials. Backend and web app are a later phase —
+Sign in with Apple is the chosen auth, behind a thin interface.
+
+## Open bug
+
+Playback stops the moment the phone locks. Lock screen populates correctly, so
+`NowPlayingCenter` is working and iOS is suspending the app.
+`INFOPLIST_KEY_UIBackgroundModes = audio` is confirmed present in both app-target
+build configs. Unverified: whether the **built** `Info.plist` contains it, and
+whether it is an array (correct) or a bare string (silently ignored by iOS).
+Check `DerivedData/.../OmniMusik.app/Info.plist`. If the type is wrong, replace the
+generated plist with an explicit `Info.plist`.
+
+## Notes
+
+`_to_delete/` holds discards from a sandbox that could not delete files, including a
+`project.pbxproj` backup. Safe to remove.
+
+`SampleAudio/` contains synthesized DEBUG-only fixtures (tagged, untagged,
+artwork-less, unicode) because Save to Files is broken in the iOS 18 simulator.
+They ship in release builds too — strip them before archiving.

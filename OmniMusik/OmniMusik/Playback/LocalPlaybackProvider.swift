@@ -156,6 +156,13 @@ final class LocalPlaybackProvider: PlaybackProvider {
 
     func play() async throws {
         guard isActive else { return }
+
+        // Reactivated on every play, not just on load. An interruption — a phone
+        // call, Siri — deactivates the session on its way out, and iOS does not
+        // hand it back automatically. Resuming afterwards would start the engine
+        // against a dead session and produce silence with no error.
+        try activateSession()
+
         do {
             if !engine.isRunning {
                 engine.prepare()

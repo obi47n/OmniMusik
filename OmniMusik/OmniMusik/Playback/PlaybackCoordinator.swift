@@ -53,12 +53,48 @@ final class PlaybackCoordinator {
     /// provider push on its own schedule.
     private var ticker: Task<Void, Never>?
 
+    private let sessionObserver = AudioSessionObserver()
+
+    /// Whether playback was running when an interruption began, so it is only
+    /// resumed afterwards if it was actually playing before.
+    private var wasPlayingBeforeInterruption = false
+
     // MARK: - Init
 
     init() {
         localProvider.onTrackFinished = { [weak self] in
             self?.advanceAfterCompletion()
         }
+        configureRemoteCommands()
+        configureSessionHandling()
+    }
+
+    private func configureRemoteCommands() {
+        NowPlayingCenter.shared.configure(with: .init(
+            play: { [weak self] in Task { await self?.resume() } },
+            pause: { [weak self] in self?.pause() },
+            toggle: { [weak self] in Task { await self?.togglePlayPause() } },
+            next: { [weak self] in Task { await self?.next() } },
+            previous: { [weak self] in Task { await self?.previous() } },
+            seek: { [weak self] time in Task { await self?.seek(to: time) } }
+        ))
+    }
+
+    private func configureSessionHandling() {
+        sessionObserver.onInterruptionBegan = { [weak self] in
+            guard let self else { return }
+            self.wasPlayingBeforeInterruption = self.isPlaying
+            self.pause()
+        }
+        sessionObserver.onInterruptionEnded = { [weak self] shouldResume in
+            guard let self, shouldResume, self.wasPlayingBeforeInterruption else { return }
+            Task { await self.resume() }
+        }
+        // Headphones pulled: pause rather than continue out of the speaker.
+        sessionObserver.onOutputDisconnected = { [weak self] in
+            self?.pause()
+        }
+        sessionObserver.start()
     }
 
     // MARK: - Transport
@@ -73,20 +109,27 @@ final class PlaybackCoordinator {
     }
 
     func togglePlayPause() async {
-        guard let provider = activeProvider else { return }
-        if isPlaying {
-            provider.pause()
-            isPlaying = false
-            stopTicking()
-        } else {
-            do {
-                try await provider.play()
-                isPlaying = true
-                startTicking()
-            } catch {
-                present(error)
-            }
+        if isPlaying { pause() } else { await resume() }
+    }
+
+    func resume() async {
+        guard let provider = activeProvider, !isPlaying else { return }
+        do {
+            try await provider.play()
+            isPlaying = true
+            startTicking()
+            publishNowPlaying()
+        } catch {
+            present(error)
         }
+    }
+
+    func pause() {
+        guard let provider = activeProvider, isPlaying else { return }
+        provider.pause()
+        isPlaying = false
+        stopTicking()
+        publishNowPlaying()
     }
 
     func next() async {
@@ -116,6 +159,7 @@ final class PlaybackCoordinator {
         guard let provider = activeProvider else { return }
         await provider.seek(to: time)
         currentTime = provider.currentTime
+        publishNowPlaying()
     }
 
     func stopPlayback() async {
@@ -127,6 +171,7 @@ final class PlaybackCoordinator {
         currentTime = 0
         duration = 0
         stopTicking()
+        NowPlayingCenter.shared.clear()
     }
 
     // MARK: - Studio
@@ -142,6 +187,7 @@ final class PlaybackCoordinator {
         currentEdit = edit
         (activeProvider as? LocalPlaybackProvider)?.apply(edit)
         duration = activeProvider?.duration ?? duration
+        publishNowPlaying()
     }
 
     // MARK: - Routing
@@ -185,6 +231,7 @@ final class PlaybackCoordinator {
             try await provider.play()
             isPlaying = true
             startTicking()
+            publishNowPlaying()
         } catch {
             present(error)
             isPlaying = false
@@ -214,6 +261,18 @@ final class PlaybackCoordinator {
     private func stopTicking() {
         ticker?.cancel()
         ticker = nil
+    }
+
+    /// Rate carries the Studio's speed setting: without it the lock screen
+    /// scrubber extrapolates at 1.0 and drifts away from what is audible.
+    private func publishNowPlaying() {
+        NowPlayingCenter.shared.update(
+            track: currentTrack,
+            isPlaying: isPlaying,
+            elapsed: currentTime,
+            duration: duration,
+            rate: currentEdit.speed
+        )
     }
 
     private func present(_ error: Error) {

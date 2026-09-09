@@ -47,8 +47,8 @@ struct SourceBadge: View {
 
     private var tint: Color {
         switch source {
-        case .local: .blue
-        case .appleMusic: .pink
+        case .local: Theme.accent
+        case .appleMusic: .pink  // Apple Music keeps its own identity colour
         }
     }
 }

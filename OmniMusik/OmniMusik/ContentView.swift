@@ -2,8 +2,8 @@
 //  ContentView.swift
 //  OmniMusik
 //
-//  Root shell: the library, with a persistent mini player docked above the tab bar
-//  that expands into the full Now Playing view.
+//  Root shell: library and search, with a persistent mini player docked above the
+//  tab bar that expands into the full Now Playing view.
 //
 
 import SwiftUI
@@ -19,14 +19,7 @@ struct ContentView: View {
             }
 
             Tab("Search", systemImage: "magnifyingglass") {
-                NavigationStack {
-                    ComingSoonView(
-                        title: "Universal Search",
-                        message: "Search across Apple Music and your local files from one place.",
-                        systemImage: "magnifyingglass"
-                    )
-                    .navigationTitle("Search")
-                }
+                NavigationStack { SearchView() }
             }
         }
         // safeAreaInset rather than iOS 26's .tabViewBottomAccessory: the deployment
@@ -52,22 +45,6 @@ struct ContentView: View {
             Button("OK", role: .cancel) { coordinator.errorMessage = nil }
         } message: {
             Text(coordinator.errorMessage ?? "")
-        }
-    }
-}
-
-/// Placeholder for surfaces arriving in later weeks. Present from the start so the
-/// shell's navigation is real rather than being restructured later.
-struct ComingSoonView: View {
-    let title: String
-    let message: String
-    let systemImage: String
-
-    var body: some View {
-        ContentUnavailableView {
-            Label(title, systemImage: systemImage)
-        } description: {
-            Text(message)
         }
     }
 }
