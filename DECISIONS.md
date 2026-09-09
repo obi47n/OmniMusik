@@ -100,6 +100,27 @@ into ECR, and being able to explain the tradeoff — "managed runtime on purpose
 is when I would move to Fargate" reads as judgment. A half-finished Fargate setup
 reads as time trouble.
 
+**No NAT gateway.** A VPC connector routes all of the service's outbound traffic
+through the VPC, and the usual fix is a NAT gateway at roughly $32/month. Rejected
+after asking what the API actually needs to reach outside the VPC: exactly one thing,
+Cognito's JWKS endpoint. A single interface endpoint serves that for about $7, and the
+VPC ends up with no public subnets and no internet gateway at all.
+
+That cuts the idle cost from roughly $60/month to $25, which matters for a project
+that will never have users. But the reason it is recorded here is the reasoning rather
+than the saving: enumerate what genuinely needs to leave a network, then buy only
+that, instead of reaching for the general-purpose default.
+
+**Not left running.** For a portfolio the cheapest deployment is an absent one —
+`terraform apply` before a demo, `terraform destroy` after, at roughly $1/day. The
+Terraform, the CI and a recording are what a reviewer actually reads; a live endpoint
+nobody visits earns almost nothing. Allow 10-15 minutes for the apply, nearly all of
+it RDS.
+
+The Lambda rejection above is also weaker than when it was written: Java SnapStart has
+closed much of the cold-start gap that made it a non-starter. It stays rejected on
+effort — a rewrite of a working, tested service — rather than on latency.
+
 ## Playlists: identifier pairs with a snapshot, not tracks and not relationships
 
 A playlist must hold a local file and an Apple Music track in one ordered list, but
