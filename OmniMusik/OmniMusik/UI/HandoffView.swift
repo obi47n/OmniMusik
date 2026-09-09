@@ -6,12 +6,19 @@
 //
 //  Spotify has to be woken to play its own audio, and waking an app foregrounds it —
 //  see DECISIONS.md. That switch cannot be avoided, so the goal here is narrower and
-//  achievable: make it read as something OmniMusik is doing, rather than something
+//  achievable: make it read as something OmniMusik is doing rather than something
 //  that happened to it.
 //
-//  Reuses the launch screen's level meter and slides it toward Spotify's green. The
-//  same motif that opens the app carries you out of it, so the two moments belong to
-//  one product rather than being separately decorated.
+//  Two tiles and an arrow, because that is the shape of the actual event: playback is
+//  moving from this app to that one. The left tile carries OmniMusik's own mark — the
+//  level meter used on the launch screen and in the Studio — so the two moments
+//  belong to one product.
+//
+//  The right tile is deliberately *not* a reproduction of Spotify's logo. Redrawing
+//  another company's mark by hand is worse than not showing it: their brand
+//  guidelines require official assets, and an approximation is both a trademark
+//  problem and visibly wrong to anyone who knows it. Their green plus a neutral glyph
+//  communicates the destination without pretending to be their asset.
 //
 
 import SwiftUI
@@ -20,60 +27,74 @@ struct HandoffView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var moved = false
 
-    private let heights: [CGFloat] = [16, 30, 46, 30, 20]
+    private let tile: CGFloat = 64
 
     var body: some View {
         ZStack {
             Theme.studioBackground.opacity(0.96).ignoresSafeArea()
 
-            VStack(spacing: 22) {
-                HStack(spacing: 14) {
-                    meter
-                    Image(systemName: "arrow.right")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Theme.studioSecondaryText)
-                        .opacity(moved ? 1 : 0)
-                    Circle()
-                        .fill(Color.green)
-                        .frame(width: 26, height: 26)
-                        .scaleEffect(moved ? 1 : 0.5)
-                        .opacity(moved ? 1 : 0)
+            VStack(spacing: 24) {
+                HStack(spacing: 18) {
+                    omniMusikTile
+                    arrow
+                    destinationTile
                 }
 
-                VStack(spacing: 5) {
-                    Text("Handing off to Spotify")
-                        .font(.headline)
-                        .foregroundStyle(Theme.studioPrimaryText)
-                    Text("Spotify plays its own audio, so it has to be open.")
-                        .font(.caption)
-                        .foregroundStyle(Theme.studioSecondaryText)
-                        .multilineTextAlignment(.center)
-                }
-                .opacity(moved ? 1 : 0)
+                Text("Handing off to Spotify")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Theme.studioSecondaryText)
+                    .opacity(moved ? 1 : 0)
+                    .animation(.smooth(duration: 0.3).delay(0.1), value: moved)
             }
             .padding(32)
         }
         .task {
             guard !reduceMotion else { moved = true; return }
-            withAnimation(.smooth(duration: 0.3)) { moved = true }
+            withAnimation(.smooth(duration: 0.34)) { moved = true }
         }
     }
 
-    private var meter: some View {
-        HStack(alignment: .center, spacing: 5) {
-            ForEach(heights.indices, id: \.self) { index in
-                Capsule()
-                    .fill(Theme.accentOnDark)
-                    .frame(width: 5, height: heights[index])
-                    // Bars collapse left to right as playback leaves this app.
-                    .scaleEffect(y: moved ? 0.35 : 1, anchor: .center)
-                    .opacity(moved ? 0.45 : 1)
-                    .animation(
-                        reduceMotion ? nil : .smooth(duration: 0.26).delay(Double(index) * 0.04),
-                        value: moved
-                    )
+    /// OmniMusik: the level meter, at tile scale.
+    private var omniMusikTile: some View {
+        RoundedRectangle(cornerRadius: 15, style: .continuous)
+            .fill(Theme.accentOnDark)
+            .frame(width: tile, height: tile)
+            .overlay {
+                HStack(alignment: .center, spacing: 3.5) {
+                    ForEach([12, 22, 30, 20].indices, id: \.self) { index in
+                        Capsule()
+                            .fill(Color.white.opacity(0.95))
+                            .frame(width: 4, height: [12, 22, 30, 20][index])
+                    }
+                }
             }
-        }
-        .frame(height: 52)
+            // Recedes as playback leaves: still present, no longer the subject.
+            .scaleEffect(moved ? 0.88 : 1)
+            .opacity(moved ? 0.55 : 1)
+            .animation(reduceMotion ? nil : .smooth(duration: 0.34), value: moved)
+    }
+
+    private var arrow: some View {
+        Image(systemName: "arrow.right")
+            .font(.system(size: 17, weight: .semibold))
+            .foregroundStyle(Theme.studioSecondaryText)
+            .opacity(moved ? 1 : 0)
+            .offset(x: moved ? 0 : -10)
+            .animation(reduceMotion ? nil : .smooth(duration: 0.3).delay(0.06), value: moved)
+    }
+
+    /// Destination: Spotify's green with a neutral glyph, not their logo.
+    private var destinationTile: some View {
+        RoundedRectangle(cornerRadius: 15, style: .continuous)
+            .fill(Color.green)
+            .frame(width: tile, height: tile)
+            .overlay {
+                Image(systemName: "waveform")
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+            .scaleEffect(moved ? 1 : 0.66)
+            .opacity(moved ? 1 : 0)
+            .animation(reduceMotion ? nil : .smooth(duration: 0.36).delay(0.1), value: moved)
     }
 }
