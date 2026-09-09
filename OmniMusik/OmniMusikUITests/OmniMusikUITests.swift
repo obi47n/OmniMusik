@@ -114,9 +114,39 @@ final class OmniMusikUITests: XCTestCase {
         firstTrackCell().tap()
 
         waitForExistence(
-            app.buttons["MiniPlayerPlayPause"],
+            app.buttons["MiniPlayerPlayPause"].firstMatch,
             "Mini player never docked, so the coordinator did not take a current track."
         )
+    }
+
+    /// The mini player must dock *above* the tab bar, not on top of it.
+    ///
+    /// Regression test for a real bug: `.safeAreaInset(edge: .bottom)` applied to the
+    /// TabView inserts into the tab bar's own space rather than above it, so the
+    /// player covered the tab buttons whenever something was playing. Asserted on
+    /// frames because that is the actual complaint -- a title-and-artist check would
+    /// have passed the whole time the bug existed.
+    func testMiniPlayerDoesNotCoverTheTabBar() {
+        populateLibrary()
+        firstTrackCell().tap()
+
+        let player = app.buttons["MiniPlayerExpand"].firstMatch
+        waitForExistence(player, "Mini player never docked.")
+
+        let tabBar = app.tabBars.firstMatch
+        waitForExistence(tabBar, "No tab bar.")
+
+        XCTAssertFalse(
+            player.frame.intersects(tabBar.frame),
+            "The mini player overlaps the tab bar. Player \(player.frame), tab bar \(tabBar.frame)."
+        )
+
+        // Every tab must still be reachable while something is playing.
+        for label in ["Library", "Playlists", "Search", "Account"] {
+            let tab = app.tabBars.buttons[label]
+            XCTAssertTrue(tab.exists, "\(label) tab is missing.")
+            XCTAssertTrue(tab.isHittable, "\(label) tab is not tappable while the mini player is docked.")
+        }
     }
 
     // MARK: - Studio
@@ -211,12 +241,12 @@ final class OmniMusikUITests: XCTestCase {
         populateLibrary()
         firstTrackCell().tap()
 
-        waitForExistence(app.buttons["MiniPlayerPlayPause"], "Playback never started.")
+        waitForExistence(app.buttons["MiniPlayerPlayPause"].firstMatch, "Playback never started.")
 
         // Expand the mini player into Now Playing, then open the queue from it.
         // Queried by identifier rather than by title, because the same title is also
         // on the library row behind it.
-        tapWhenReady(app.buttons["MiniPlayerExpand"], "Mini player did not expand.")
+        tapWhenReady(app.buttons["MiniPlayerExpand"].firstMatch, "Mini player did not expand.")
         tapWhenReady(app.buttons["NowPlayingQueue"], "Now Playing did not offer the queue.")
 
         waitForExistence(

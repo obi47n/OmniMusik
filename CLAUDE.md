@@ -79,6 +79,10 @@ merge them.
   or the lock screen drifts from what is audible.
 - Audio session is reactivated on every `play()`, not just load — interruptions
   deactivate it and iOS does not hand it back.
+- The mini player's `safeAreaInset` goes on **each tab's content**, never on the
+  `TabView`. Applied to the TabView it inserts into the tab bar's own space and draws
+  the player over the tab buttons. Costs four instances of a stateless view; covered
+  by `testMiniPlayerDoesNotCoverTheTabBar`, which asserts on frames.
 - Effects split into **parametric** (live node mutation) and **structural** (trim,
   requires reschedule). Only trim reschedules, only when bounds actually move.
 - Playlists store `(source, sourceID)` pairs plus a **denormalized snapshot**, not
