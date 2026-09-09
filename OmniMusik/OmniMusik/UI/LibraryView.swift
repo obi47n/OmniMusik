@@ -28,6 +28,7 @@ struct LibraryView: View {
     @State private var isProcessingImport = false
     @State private var studioTarget: LocalTrackEntity?
     @State private var addToPlaylistTarget: Track?
+    @State private var exportRequest: ExportRequest?
 
     enum SourceFilter: Hashable {
         case all
@@ -75,6 +76,9 @@ struct LibraryView: View {
         .navigationTitle("Library")
         .sheet(item: $addToPlaylistTarget) { track in
             AddToPlaylistView(track: track)
+        }
+        .sheet(item: $exportRequest) { request in
+            ExportSheet(request: request)
         }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -196,6 +200,14 @@ struct LibraryView: View {
             if let entity {
                 Button { studioTarget = entity } label: {
                     Label("Open in Studio", systemImage: "slider.horizontal.3")
+                }
+                // Only owned files can be rendered. Apple Music audio is
+                // DRM-protected and never reaches a buffer this app can read,
+                // so there is nothing to bake an edit into.
+                Button {
+                    exportRequest = ExportRequest(track: track, edit: entity.edit)
+                } label: {
+                    Label("Export…", systemImage: "square.and.arrow.up")
                 }
                 if !entity.edit.isIdentity {
                     Button {
