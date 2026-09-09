@@ -148,3 +148,74 @@ li.card {
 .center p { color: var(--text-2); max-width: 44ch; margin: 0 auto 22px; }
 
 .unplayable .card-title { color: var(--text-3); }
+
+
+/* ---------- Playlist grid ----------
+   Two columns to match the phone, widening on a desktop where a two-column grid of
+   large tiles would just be wasted space. */
+ul.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+@media (min-width: 620px) {
+  ul.grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (min-width: 900px) {
+  ul.grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+.tile-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.tile-cover {
+  aspect-ratio: 1;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 10px;
+}
+
+.tile-link:hover .tile-cover {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.tile-name {
+  font-weight: 600;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tile-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-2);
+  margin-top: 2px;
+}
+
+/* The way out of a detail route. Sized and spaced like a label rather than a
+   button: leaving is not the action this screen is for. */
+.back {
+  display: inline-block;
+  margin-bottom: 14px;
+  color: var(--muted);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.back:hover,
+.back:focus-visible {
+  color: var(--accent);
+}

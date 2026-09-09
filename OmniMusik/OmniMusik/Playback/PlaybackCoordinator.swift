@@ -49,31 +49,11 @@ final class PlaybackCoordinator {
     /// screen. Drives the handoff transition.
     private(set) var isHandingOffToSpotify = false
 
-    /// A track the queue reached but could not start, because its service needs its
-    /// own app woken and iOS only permits that from the foreground.
-    ///
-    /// Held rather than skipped: the person asked for this track, and a playlist's
-    /// order is the point. It starts as soon as the app is on screen again.
-    private(set) var trackAwaitingForeground: Track?
-
-    /// Set only when holding was not an option — notifications are denied, so there
-    /// would be nothing to tell the person and playback would simply stop. Then the
-    /// queue moves on instead, and this explains the gap on return.
+    /// The service whose track the queue most recently passed over, because its app
+    /// could not be woken from the background. Explains the gap on return.
     private(set) var deferredForegroundSource: TrackSource?
 
     func clearDeferredForegroundSource() { deferredForegroundSource = nil }
-
-    /// Starts a track that was waiting for the app to be on screen.
-    ///
-    /// Called when the app becomes active. Does nothing unless something is actually
-    /// held, so it is safe to call on every activation.
-    func resumeTrackAwaitingForeground() async {
-        guard let track = trackAwaitingForeground else { return }
-        trackAwaitingForeground = nil
-        PlaybackNotifier.clearPending()
-        HandoffLog.note("resuming held track after returning to foreground")
-        await start(track)
-    }
 
     func endHandoffTransition() {
         if isHandingOffToSpotify { HandoffLog.note("coordinator: isHandingOffToSpotify -> false") }
@@ -341,23 +321,15 @@ final class PlaybackCoordinator {
             startTicking()
             publishNowPlaying()
         } catch PlaybackError.requiresForeground(let source) {
-            // Not a failure: the queue reached a track whose app cannot be woken from
-            // the background. Hold it and ask the person to come back, which is the
-            // only thing an app can do from behind a lock screen.
-            HandoffLog.note("start(): \(source.displayName) needs foreground")
-            isPlaying = false
-            stopTicking()
-
-            if await PlaybackNotifier.ensureAuthorized() {
-                trackAwaitingForeground = track
-                await PlaybackNotifier.notifyPlaybackNeedsForeground(track: track)
-            } else {
-                // Nothing would tell them why the music stopped, so keep it playing
-                // instead and explain the skip when they next open the app.
-                HandoffLog.note("start(): notifications unavailable; skipping instead")
-                deferredForegroundSource = source
-                await skipToPlayableTrack()
-            }
+            // Not a failure, and deliberately not a stop. The queue reached a track
+            // whose app iOS will only let us wake from the foreground, and a queue
+            // that dies behind a lock screen is worse than one that passes over a
+            // track. So the music keeps going, and the notification reports which
+            // track was skipped rather than asking to be rescued.
+            HandoffLog.note("start(): \(source.displayName) needs foreground; skipping")
+            deferredForegroundSource = source
+            await PlaybackNotifier.notifySkipped(track: track)
+            await skipToPlayableTrack()
         } catch {
             present(error)
             isPlaying = false
@@ -367,31 +339,33 @@ final class PlaybackCoordinator {
 
     /// Advances past tracks that cannot start right now.
     ///
-    /// Bounded by the queue length: a queue made entirely of tracks needing a
-    /// foreground would otherwise recurse until the stack gave out.
+    /// The choice of where to land is `QueueAdvance`'s, which is testable; what
+    /// belongs here is the one thing it cannot know -- whether this app is on screen,
+    /// and so whether another app can be woken at all.
     private func skipToPlayableTrack() async {
-        var remaining = queue.count
-        while remaining > 0 {
-            remaining -= 1
-            let next = queueIndex + 1
-            guard next < queue.count else { break }
-            queueIndex = next
+        let appIsOnScreen = UIApplication.shared.applicationState == .active
+        let destination = QueueAdvance.nextPlayableIndex(
+            after: queueIndex,
+            in: queue.map(\.source)
+        ) { source in
+            // Only Spotify needs its own app woken. Local files need nothing, and
+            // Apple Music is played by a system process that is always available.
+            source != .spotify || appIsOnScreen
+        }
 
-            let track = queue[next]
-            if track.source == .spotify, UIApplication.shared.applicationState != .active {
-                continue // Same problem again; keep looking.
-            }
-            await start(track)
+        guard let destination else {
+            // Nothing left that can play without the app being open.
+            isPlaying = false
+            stopTicking()
+            NowPlayingCenter.shared.update(
+                track: currentTrack, isPlaying: false,
+                elapsed: currentTime, duration: duration, rate: 0
+            )
             return
         }
 
-        // Nothing left that can play without the app being open.
-        isPlaying = false
-        stopTicking()
-        NowPlayingCenter.shared.update(
-            track: currentTrack, isPlaying: false,
-            elapsed: currentTime, duration: duration, rate: 0
-        )
+        queueIndex = destination
+        await start(queue[destination])
     }
 
     private func advanceAfterCompletion() {

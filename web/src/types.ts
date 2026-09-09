@@ -79,3 +79,25 @@ export function totalDuration(playlist: Playlist): number {
 export function isCrossSource(playlist: Playlist): boolean {
   return new Set(playlist.entries.map((e) => e.source)).size > 1
 }
+
+
+/**
+ * The colour a playlist's tile takes, matching the iOS app exactly.
+ *
+ * Same djb2 hash over the same input, so one playlist is the same colour on both
+ * clients — which is the point: a person recognises a playlist by its tile, and a
+ * tile that changes colour between devices is worse than no colour at all.
+ *
+ * Two details make them agree. Swift's `UUID.uuidString` is uppercase while JSON
+ * carries lowercase, so the id is upper-cased before hashing. And SwiftUI's
+ * `Color(hue:saturation:brightness:)` is HSB while CSS `hsl()` is HSL, so the fixed
+ * 0.55/0.62 there converts to roughly 38%/45% here.
+ */
+export function playlistTint(id: string): string {
+  let hash = 5381n
+  for (const byte of new TextEncoder().encode(id.toUpperCase())) {
+    hash = BigInt.asUintN(64, hash * 33n + BigInt(byte))
+  }
+  const hue = Number(hash % 360n)
+  return `hsl(${hue}, 38%, 45%)`
+}

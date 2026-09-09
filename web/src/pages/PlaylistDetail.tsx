@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, ConflictError } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { formatDuration, sourceLabel, type Playlist, type PlaylistEntry } from '../types'
@@ -141,6 +141,10 @@ export function PlaylistDetail() {
           <p>{error}</p>
         </div>
       )}
+
+      <Link to="/" className="back">
+        &larr; All playlists
+      </Link>
 
       <header className="bar" style={{ borderBottom: 'none', paddingTop: 0 }}>
         <input type="text" value={name} onChange={(e) => setName(e.target.value)} aria-label="Playlist name" />

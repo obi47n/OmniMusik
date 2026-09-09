@@ -2,7 +2,19 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
-import { formatDuration, isCrossSource, totalDuration, type Playlist } from '../types'
+import {
+  formatDuration,
+  isCrossSource,
+  playlistTint,
+  totalDuration,
+  type Playlist,
+} from '../types'
+
+/** The same top-left-to-bottom-right gradient the iOS tiles use. */
+function coverFor(playlist: Playlist): string {
+  const tint = playlistTint(playlist.id)
+  return `linear-gradient(135deg, ${tint}, color-mix(in srgb, ${tint} 45%, transparent))`
+}
 
 export function Playlists() {
   const { getAccessToken } = useAuth()
@@ -90,14 +102,13 @@ export function Playlists() {
       )}
 
       {playlists && playlists.length > 0 && (
-        <ul className="list">
+        <ul className="grid">
           {playlists.map((playlist) => (
-            <li className="card" key={playlist.id}>
-              <div className="card-main">
-                <div className="card-title">
-                  <Link to={`/playlists/${playlist.id}`}>{playlist.name}</Link>
-                </div>
-                <div className="card-sub">
+            <li key={playlist.id}>
+              <Link to={`/playlists/${playlist.id}`} className="tile-link">
+                <div className="tile-cover" style={{ background: coverFor(playlist) }} />
+                <div className="tile-name">{playlist.name}</div>
+                <div className="tile-sub">
                   <span>
                     {playlist.entries.length === 0
                       ? 'Empty'
@@ -105,9 +116,6 @@ export function Playlists() {
                   </span>
                   {isCrossSource(playlist) && <span className="badge">MIXED</span>}
                 </div>
-              </div>
-              <Link to={`/playlists/${playlist.id}`}>
-                <button>Open</button>
               </Link>
             </li>
           ))}

@@ -48,7 +48,7 @@ struct ContentView: View {
         ) {
             Button("OK", role: .cancel) { coordinator.clearDeferredForegroundSource() }
         } message: {
-            Text("\(coordinator.deferredForegroundSource?.displayName ?? "That service") needs its app opened, and iOS only allows that while OmniMusik is on screen. Notifications are off, so playback continued with the next track rather than stopping with no explanation.")
+            Text("\(coordinator.deferredForegroundSource?.displayName ?? "That service") needs its app opened, and iOS only allows that while OmniMusik is on screen. Playback continued with the next track.")
         }
         .alert(
             "Playback Problem",

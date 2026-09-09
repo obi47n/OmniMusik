@@ -115,11 +115,7 @@ struct OmniMusikApp: App {
                     // SPTAppRemote drops its connection when the app backgrounds.
                     // Re-establishing it on return means the first track someone taps
                     // plays in place rather than bouncing them into Spotify.
-                    Task {
-                        await spotifyProvider?.connectIfPossible()
-                        // Whatever the queue could not start from the lock screen.
-                        await coordinator.resumeTrackAwaitingForeground()
-                    }
+                    Task { await spotifyProvider?.connectIfPossible() }
                 }
 
                 if isLaunching {

@@ -440,7 +440,7 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
     <li><a href="#playlists">Cross-source playlists</a></li>
     <li><a href="#sync">Sync and conflicts</a></li>
     <li><a href="#deploying">Deploying it</a></li>
-    <li><a href="#bugs">Two war stories</a></li>
+    <li><a href="#bugs">Three war stories</a></li>
     <li><a href="#defend">Decisions to defend</a></li>
     <li><a href="#limits">Honest limitations</a></li>
     <li><a href="#status">What is actually built</a></li>
@@ -770,8 +770,8 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
 </section>
 
 <section id="bugs">
-  <h2>Two war stories</h2>
-  <p class="section-note">For &ldquo;tell me about a difficult bug.&rdquo; Both are real, and both have a clean diagnostic arc.</p>
+  <h2>Three war stories</h2>
+  <p class="section-note">For &ldquo;tell me about a difficult bug.&rdquo; All three are real. The first two have a clean diagnostic arc; the third is the one to tell when asked about a mistake, because the mistake was mine.</p>
 
   <h3>1. Playback died the instant the phone locked</h3>
   <p><strong>Symptom.</strong> Audio stopped the moment the screen locked. But the lock screen itself populated correctly &mdash; artwork, title, working transport controls. That combination is what made it hard: it proved <code>NowPlayingCenter</code> was working, which pointed away from the real cause.</p>
@@ -785,6 +785,17 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
 
   <h3>2. Seeking skipped to the next track</h3>
   <p>Covered in detail above. The short version for a verbal answer: a completion handler that fires on cancellation as well as completion, mistaken for an end&#8209;of&#8209;track signal, fixed with a generation counter that invalidates in&#8209;flight callbacks. It is a good story because the API&rsquo;s contract is genuinely surprising and the fix is three lines and a clear invariant.</p>
+
+  <h3>3. A queue that could not cross into Spotify</h3>
+  <p><strong>Symptom.</strong> Playing an MP3 and skipping to a Spotify track threw the person out of OmniMusik and into the Spotify app. Going the other way &mdash; Spotify to MP3 &mdash; was seamless. That asymmetry was the whole tell, and I ignored it for three attempts.</p>
+  <p><strong>Three fixes that could never have worked.</strong> I warmed the Spotify connection when a Spotify track was next in the queue; suspension happens <em>during</em> the local track, after the warm&#8209;up. I held the connection object open across handoffs; holding a connection does not stop the OS suspending the process at the other end. I stopped relinquishing the audio session on handoff; a genuine bug, fixed, and unrelated to this one. Each was a plausible story reasoned from the outside, and each shipped without a measurement.</p>
+  <p><strong>What actually settled it.</strong> A twenty&#8209;line debug logger writing timestamped lines into the app container, pulled off the device with <code>devicectl</code>. The log showed the connection attempt failing before the app&#8209;switch every single time, which is what a suspended process looks like from the other side.</p>
+  <p><strong>Root cause, and it is structural.</strong> Spotify audio renders in Spotify&rsquo;s process. While local audio plays, Spotify produces no audio, so iOS suspends it. A suspended app cannot accept an <code>SPTAppRemote</code> connection, and the only remaining route wakes it into the foreground. There is no entitlement that keeps a third&#8209;party app alive, and the one state that would &mdash; Spotify actively playing &mdash; is exactly what cannot be true while something else plays.</p>
+  <p><strong>What shipped instead.</strong> Not a fix, because there isn&rsquo;t one. A handoff screen that makes the switch look intentional rather than like a crash; and from the lock screen, where iOS will not permit waking another app at all, the queue skips to the next track it can start and posts a silent notification naming what it passed over. Holding the track and asking the person to unlock was built first and rejected on use: it stops the music, and the person who is not looking at their phone is precisely the one who cannot act on the request.</p>
+  <div class="callout">
+    <div class="callout-label">The transferable lesson</div>
+    <p>I made three confident fixes before taking one measurement. Reasoning about another process&rsquo;s lifecycle from inside your own is guessing, however good the guess sounds. The logger cost twenty minutes and would have saved the other three attempts &mdash; and the answer it produced was that the behaviour was a platform constraint to design around, not a bug to fix. Knowing which of those two you are looking at is the part worth getting right early.</p>
+  </div>
 </section>
 
 <section id="defend">

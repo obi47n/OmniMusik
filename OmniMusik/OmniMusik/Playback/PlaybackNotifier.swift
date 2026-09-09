@@ -6,14 +6,15 @@
 //
 //  There is exactly one thing an app can do from the background when it needs the
 //  person's attention, and this is it. When the queue reaches a track whose service
-//  needs its own app woken — which iOS only permits from the foreground — a local
-//  notification is the only way to say so. The alternative is playback stopping with
-//  no explanation anywhere.
+//  needs its own app woken — which iOS only permits from the foreground — the track
+//  is skipped so the music keeps going, and this says which one and why.
 //
-//  Permission is requested at the moment it is first needed rather than at launch. A
-//  prompt on first run, before the app has done anything, is asking for trust that
-//  has not been earned; a prompt attached to a thing that just happened explains
-//  itself.
+//  Permission is requested when a streaming service is connected, not at launch and
+//  not at the moment of need. A prompt on first run asks for trust the app has not
+//  earned; asking at the moment of need does not work at all here, because that
+//  moment is behind a lock screen and iOS will not present a permission prompt to a
+//  backgrounded app. Connecting Spotify is both a foreground action and the point at
+//  which this becomes relevant, so that is where the ask belongs.
 //
 
 import Foundation
@@ -21,6 +22,11 @@ import UserNotifications
 
 @MainActor
 enum PlaybackNotifier {
+
+    /// Asks up front, at a moment when a prompt can actually be shown.
+    static func requestIfNeededAfterConnecting() async {
+        _ = await ensureAuthorized()
+    }
 
     /// Asks to notify, returning whether it is allowed.
     ///
@@ -42,21 +48,23 @@ enum PlaybackNotifier {
         }
     }
 
-    /// Posts the "come back and I will continue" notification.
+    /// Reports a track the queue passed over.
     ///
-    /// Delivered immediately, and replaces any previous one by using a fixed
-    /// identifier: a queue that meets three streaming tracks in a row should not
-    /// stack three notifications saying the same thing.
-    static func notifyPlaybackNeedsForeground(track: Track) async {
+    /// Informational rather than a call to action: playback did not stop, so this
+    /// explains a gap instead of asking for a rescue. No sound, because interrupting
+    /// music to announce that the music is still playing would be absurd.
+    ///
+    /// A fixed identifier means a queue meeting three streaming tracks in a row
+    /// replaces its own notification rather than stacking three.
+    static func notifySkipped(track: Track) async {
         guard await ensureAuthorized() else { return }
 
         let content = UNMutableNotificationContent()
-        content.title = "Tap to keep playing"
-        content.body = "\(track.title) is on \(track.source.displayName), which needs OmniMusik open to start."
-        content.sound = .default
+        content.title = "Skipped \(track.title)"
+        content.body = "\(track.source.displayName) needs OmniMusik open to start its app, so playback moved on."
 
         let request = UNNotificationRequest(
-            identifier: "playback.needs-foreground",
+            identifier: "playback.skipped-needs-foreground",
             content: content,
             trigger: nil // Immediately.
         )
@@ -65,6 +73,6 @@ enum PlaybackNotifier {
 
     static func clearPending() {
         UNUserNotificationCenter.current()
-            .removeDeliveredNotifications(withIdentifiers: ["playback.needs-foreground"])
+            .removeDeliveredNotifications(withIdentifiers: ["playback.skipped-needs-foreground"])
     }
 }

@@ -164,12 +164,13 @@ properties.
 Working on device: local library and import, metadata extraction, SwiftData
 persistence, AVAudioEngine playback, the effects chain, the signal-chain Studio.
 
-Smoke-tested in simulator by `OmniMusikUITests` (7 cases): waveform rendering,
+Smoke-tested in simulator by `OmniMusikUITests` (12 cases): waveform rendering,
 unified library, search fan-out, cross-source playlists end to end, queue view,
 account screen.
 
-Unit-tested by `OmniMusikTests` (33 cases): playlist rules, `AudioEdit` identity and
-Codable round trips, `PlaylistEntry` coding, offline renderer timeline arithmetic.
+Unit-tested by `OmniMusikTests` (60 cases): playlist rules, `AudioEdit` identity and
+Codable round trips, `PlaylistEntry` coding, offline renderer timeline arithmetic, the
+sync decision table, source connection states, and the queue-advance rule.
 The renderer suite is `.serialized` — parallel offline engines sharing one directory
 interfere.
 

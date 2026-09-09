@@ -114,10 +114,11 @@ rejected. A few that shape the code:
 | iOS and web sign-in | Configured against a live Cognito pool; OAuth flow verified in a browser |
 | Apple Music | Deliberate stub; blocked on App Service provisioning |
 
-Tests: 50 on iOS (39 unit tests over the playlist rules, `AudioEdit` identity and
-Codable round trips, the renderer's timeline arithmetic and the sync decision table,
-plus 11 UI tests driving each subsystem end to end) and 12 on the backend (sync
-semantics, ownership isolation, and the wire format the iOS client depends on).
+Tests: 72 on iOS (60 unit tests over the playlist rules, `AudioEdit` identity and
+Codable round trips, the renderer's timeline arithmetic, the sync decision table,
+source connection states and the queue-advance rule, plus 12 UI tests driving each
+subsystem end to end) and 13 on the backend (sync semantics, ownership isolation, and
+the wire format the iOS client depends on).
 
 The iOS UI suite runs serially by design — the shared scheme sets
 `parallelizable="NO"`, because parallel simulator clones made it flaky.

@@ -245,6 +245,32 @@ same wall as the effects chain in another guise -- streaming audio lives in some
 else's process, and everything that follows from that is a constraint rather than a
 bug.
 
+## Crossing into Spotify from the lock screen: skip, and say so
+
+The entry above establishes that waking a suspended Spotify needs the foreground.
+This is what the queue does when it hits that case while the phone is locked.
+
+Considered holding the track and notifying, so the person could unlock and resume
+exactly where the playlist said. Built, then rejected on use: the music stops. A
+queue that goes silent behind a lock screen reads as the app breaking, and the
+notification arrives as a demand for attention to fix something rather than as
+information. The playlist's order is worth defending, but not at the price of
+silence — and the person who is not looking at their phone is precisely the one who
+cannot act on the request.
+
+So the queue skips to the next track it can actually start, bounded by the queue
+length so a run of Spotify tracks terminates rather than spinning. The notification
+becomes a report — which track was passed over, and why — delivered without sound,
+under a fixed identifier so three skips replace one notification rather than
+stacking three.
+
+Notification permission is requested when a streaming service is connected, not at
+launch and not at the moment of need. Launch asks for trust the app has not earned.
+The moment of need does not work at all: it is behind a lock screen, and iOS does
+not present a permission prompt to a backgrounded app, so the request fails and the
+report is silently lost. Connecting Spotify is a foreground action and the first
+moment the permission means anything, which makes it the right place to ask.
+
 ## Rejected features
 
 - **Stems / source separation.** A machine-learning project wearing a tab.

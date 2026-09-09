@@ -55,6 +55,12 @@ final class SourceConnectionCenter {
 
         do {
             try await connectable.connect()
+
+            // Connecting is a foreground action, and it is the moment this becomes
+            // relevant: a queue mixing this service with local files will eventually
+            // need to ask the person to come back. Asking later means asking from a
+            // lock screen, where iOS shows no prompt at all.
+            await PlaybackNotifier.requestIfNeededAfterConnecting()
         } catch SourceConnectionError.cancelled {
             // Backing out is an ordinary outcome, not a failure.
         } catch {
