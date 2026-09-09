@@ -34,7 +34,8 @@ docs/        Interview study notes
 Build commands, since the toolchain here is not discoverable:
 
 - iOS: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild ...`
-  (`xcode-select` points at CommandLineTools on this machine)
+  (`xcode-select` points at CommandLineTools on this machine). The shared scheme
+  disables parallel testing on purpose -- see below.
 - Backend: `cd backend && ./mvnw test`
 - Web: `cd web && npm run build`
 - Infra: `terraform -chdir=infra validate` (terraform is not installed globally)
@@ -98,6 +99,32 @@ merge them.
   plist sits at SRCROOT, outside the synchronized folder so Xcode does not treat it
   as a resource; `GENERATE_INFOPLIST_FILE` stays `YES` and merges on top of it.
 
+## Testing notes
+
+The UI suite runs **serially**, enforced by `parallelizable="NO"` in the shared
+scheme. Run in parallel it fails a different test on each run and passes every one in
+isolation. Do not re-enable it to make the suite faster.
+
+Two XCUITest traps cost real time here and are handled by helpers in
+`OmniMusikUITests`:
+
+- **Existence is not hittability.** An element is in the hierarchy while its
+  container is still animating, and a tap in that window lands nowhere *silently*.
+  The test then fails much later, at whatever the tap was supposed to produce. Every
+  tap goes through `tapWhenReady`.
+- **Context menus swallow a tap that arrives while settling**, leaving the menu on
+  screen. `tapMenuItem` checks the menu actually closed and retries once.
+
+Also: `accessibilityIdentifier` propagates to every descendant, and one on a
+container silently overwrites a more specific one on a child -- keep at most one per
+subtree. SwiftUI labels a `Menu` "More" and puts the image identifier on the child,
+so name such controls explicitly. The element hierarchy in the `.xcresult` bundle is
+the fastest way to diagnose a query that should match and does not:
+
+```
+xcrun xcresulttool export attachments --path <bundle>.xcresult --output-path <dir>
+```
+
 ## Cross-component contracts
 
 The wire format is shared by three codebases and two of the couplings are invisible
@@ -142,8 +169,12 @@ Codable round trips, `PlaylistEntry` coding, offline renderer timeline arithmeti
 The renderer suite is `.serialized` — parallel offline engines sharing one directory
 interfere.
 
-Not done: MusicKit integration (blocked), backend, web client, demo materials.
-Background audio on lock is fixed but needs device confirmation.
+Backend, web client and Terraform all exist and pass their own checks, but nothing
+is deployed: no Cognito pool has been created, so neither client has ever completed a
+real sign-in and the sync client has never talked to a running service.
+
+Not done: MusicKit integration (blocked), deployment, demo materials. Background audio
+on lock is fixed but needs device confirmation.
 
 When adding UI tests: `accessibilityIdentifier` propagates to every descendant and an
 identifier on a container silently overwrites a more specific one on a child. Keep at
