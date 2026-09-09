@@ -31,6 +31,23 @@ protocol MusicSource: Sendable {
     func library() async throws -> [Track]
 
     func search(_ query: String) async throws -> [Track]
+
+    /// Resolves one track from the identifier this source issued for it.
+    ///
+    /// Added for playlists, which store `(source, sourceID)` pairs rather than
+    /// tracks — see `PlaylistEntry`. Returning nil means "this source cannot
+    /// supply that track right now", which covers both a deleted local file and
+    /// a source that is simply not connected. That is an ordinary answer, not a
+    /// failure, so it is nil rather than a throw.
+    func track(forSourceID sourceID: String) async throws -> Track?
+}
+
+extension MusicSource {
+    /// Sources that cannot yet resolve individual identifiers inherit this.
+    /// A playlist entry from such a source renders from its stored snapshot and
+    /// is marked unplayable, which is exactly the intended behaviour while
+    /// Apple Music is stubbed.
+    func track(forSourceID sourceID: String) async throws -> Track? { nil }
 }
 
 enum MusicSourceError: LocalizedError {

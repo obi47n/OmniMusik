@@ -107,6 +107,73 @@ final class OmniMusikUITests: XCTestCase {
         )
     }
 
+    // MARK: - Playlists
+
+    /// End-to-end: library -> context menu -> new playlist -> playlist detail.
+    ///
+    /// Uses a unique name per run because playlists persist in the simulator's
+    /// store between runs, and a fixed name would start matching an earlier
+    /// run's row instead of the one this test created.
+    func testCreatingAPlaylistFromTheLibraryAndOpeningIt() {
+        populateLibrary()
+
+        let name = "Set \(UUID().uuidString.prefix(6))"
+
+        app.cells.firstMatch.press(forDuration: 1.2)
+        let addToPlaylist = app.buttons["Add to Playlist"]
+        XCTAssertTrue(addToPlaylist.waitForExistence(timeout: 5), "Context menu did not offer Add to Playlist.")
+        addToPlaylist.tap()
+
+        let newPlaylist = app.buttons["New Playlist"].firstMatch
+        XCTAssertTrue(newPlaylist.waitForExistence(timeout: 5), "Add-to-playlist sheet did not offer a new playlist.")
+        newPlaylist.tap()
+
+        let field = app.alerts.textFields.firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5), "Name prompt never appeared.")
+        field.typeText(name)
+        app.alerts.buttons["Create"].tap()
+
+        // Creating from here seeds the playlist with the track in one step.
+        app.buttons["Playlists"].tap()
+        let row = app.staticTexts[name]
+        XCTAssertTrue(row.waitForExistence(timeout: 10), "New playlist did not appear in the index.")
+
+        XCTAssertTrue(
+            app.staticTexts["1 track · 0:09"].waitForExistence(timeout: 5)
+                || app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "1 track")).firstMatch.exists,
+            "Playlist row did not summarise its contents from the stored snapshot."
+        )
+
+        row.tap()
+        XCTAssertTrue(
+            app.buttons["Play"].waitForExistence(timeout: 10),
+            "Playlist detail did not resolve its entries into a playable state."
+        )
+    }
+
+    // MARK: - Queue
+
+    func testQueueViewListsWhatIsPlaying() {
+        populateLibrary()
+        app.cells.firstMatch.tap()
+
+        XCTAssertTrue(app.buttons["MiniPlayerPlayPause"].waitForExistence(timeout: 15))
+
+        // Expand the mini player into Now Playing, then open the queue from it.
+        // Queried by identifier rather than by title, because the same title is
+        // also on the library row behind it.
+        app.buttons["MiniPlayerExpand"].tap()
+
+        let queueButton = app.buttons["NowPlayingQueue"]
+        XCTAssertTrue(queueButton.waitForExistence(timeout: 10), "Now Playing did not offer the queue.")
+        queueButton.tap()
+
+        XCTAssertTrue(
+            app.staticTexts["Now Playing"].waitForExistence(timeout: 10),
+            "Queue view did not render its Now Playing section."
+        )
+    }
+
     // MARK: - Account
 
     func testAccountTabReportsSignInIsNotConfigured() {

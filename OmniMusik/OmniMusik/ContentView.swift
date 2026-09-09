@@ -18,6 +18,10 @@ struct ContentView: View {
                 NavigationStack { LibraryView() }
             }
 
+            Tab("Playlists", systemImage: "music.note.list") {
+                NavigationStack { PlaylistsView() }
+            }
+
             Tab("Search", systemImage: "magnifyingglass") {
                 NavigationStack { SearchView() }
             }

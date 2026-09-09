@@ -14,6 +14,8 @@ struct NowPlayingView: View {
     /// thumb jumps backward under the thumb.
     @State private var scrubPosition: TimeInterval = 0
     @State private var isScrubbing = false
+    @State private var showingQueue = false
+    @State private var addToPlaylistTarget: Track?
 
     var body: some View {
         NavigationStack {
@@ -41,6 +43,43 @@ struct NowPlayingView: View {
                         Image(systemName: "chevron.down")
                     }
                 }
+
+                // The queue is a primary control in a player, not an overflow
+                // item, so it gets its own button rather than living in the menu.
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingQueue = true
+                    } label: {
+                        Image(systemName: "list.bullet")
+                    }
+                    .disabled(coordinator.queue.isEmpty)
+                    .accessibilityIdentifier("NowPlayingQueue")
+                    .accessibilityLabel("Queue")
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        if let track = coordinator.currentTrack {
+                            Button {
+                                addToPlaylistTarget = track
+                            } label: {
+                                Label("Add to Playlist", systemImage: "text.badge.plus")
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                    .disabled(coordinator.currentTrack == nil)
+                    // SwiftUI labels a Menu "More" by default and puts the image
+                    // identifier on the child, so name the control explicitly
+                    // rather than depending on either.
+                    .accessibilityIdentifier("NowPlayingMenu")
+                    .accessibilityLabel("More options")
+                }
+            }
+            .sheet(isPresented: $showingQueue) { QueueView() }
+            .sheet(item: $addToPlaylistTarget) { track in
+                AddToPlaylistView(track: track)
             }
         }
     }

@@ -16,15 +16,30 @@ struct MiniPlayerView: View {
                 progressHairline(for: track)
 
                 HStack(spacing: 12) {
-                    ArtworkView(data: track.artworkData, cornerRadius: 4)
-                        .frame(width: 36, height: 36)
+                    // A real Button rather than an onTapGesture on the enclosing
+                    // stack. The gesture worked for touch but was invisible to
+                    // VoiceOver -- a plain stack is not an accessibility element,
+                    // so "expand to Now Playing" could not be activated at all.
+                    // The Spacer lives inside so the whole left region stays
+                    // tappable, which is what the gesture used to give.
+                    Button(action: onTap) {
+                        HStack(spacing: 12) {
+                            ArtworkView(data: track.artworkData, cornerRadius: 4)
+                                .frame(width: 36, height: 36)
 
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(track.title).font(.footnote.weight(.medium)).lineLimit(1)
-                        Text(track.artist).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(track.title).font(.footnote.weight(.medium)).lineLimit(1)
+                                Text(track.artist).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                            }
+
+                            Spacer(minLength: 4)
+                        }
+                        .contentShape(Rectangle())
                     }
-
-                    Spacer(minLength: 4)
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("MiniPlayerExpand")
+                    .accessibilityLabel("\(track.title), \(track.artist)")
+                    .accessibilityHint("Opens Now Playing")
 
                     Button {
                         Task { await coordinator.togglePlayPause() }
@@ -53,8 +68,6 @@ struct MiniPlayerView: View {
                 .padding(.vertical, 8)
             }
             .background(.regularMaterial)
-            .contentShape(Rectangle())
-            .onTapGesture(perform: onTap)
         }
     }
 

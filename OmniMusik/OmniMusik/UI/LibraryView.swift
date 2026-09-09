@@ -27,6 +27,7 @@ struct LibraryView: View {
     @State private var importFailures: [String] = []
     @State private var isProcessingImport = false
     @State private var studioTarget: LocalTrackEntity?
+    @State private var addToPlaylistTarget: Track?
 
     enum SourceFilter: Hashable {
         case all
@@ -72,6 +73,9 @@ struct LibraryView: View {
             }
         }
         .navigationTitle("Library")
+        .sheet(item: $addToPlaylistTarget) { track in
+            AddToPlaylistView(track: track)
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { isImporting = true } label: {
@@ -186,6 +190,9 @@ struct LibraryView: View {
             }
         }
         .contextMenu {
+            Button { addToPlaylistTarget = track } label: {
+                Label("Add to Playlist", systemImage: "text.badge.plus")
+            }
             if let entity {
                 Button { studioTarget = entity } label: {
                     Label("Open in Studio", systemImage: "slider.horizontal.3")

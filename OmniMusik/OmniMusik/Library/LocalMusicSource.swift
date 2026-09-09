@@ -33,6 +33,15 @@ final class LocalMusicSource: MusicSource {
         return try context.fetch(descriptor).map(\.asTrack)
     }
 
+    /// `sourceID` for a local track is its file name inside the audio directory.
+    func track(forSourceID sourceID: String) async throws -> Track? {
+        var descriptor = FetchDescriptor<LocalTrackEntity>(
+            predicate: #Predicate { $0.fileName == sourceID }
+        )
+        descriptor.fetchLimit = 1
+        return try context.fetch(descriptor).first?.asTrack
+    }
+
     func search(_ query: String) async throws -> [Track] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }

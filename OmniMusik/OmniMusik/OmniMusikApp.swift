@@ -14,6 +14,7 @@ struct OmniMusikApp: App {
     @State private var searchService: SearchService
     @State private var libraryStore: LibraryStore
     @State private var auth: AuthController
+    @State private var playlistStore: PlaylistStore
 
     /// Built explicitly rather than via `.modelContainer(for:)` so the same
     /// container can be handed to `LocalMusicSource`, which needs its own context.
@@ -22,7 +23,7 @@ struct OmniMusikApp: App {
     init() {
         let container: ModelContainer
         do {
-            container = try ModelContainer(for: LocalTrackEntity.self)
+            container = try ModelContainer(for: LocalTrackEntity.self, PlaylistEntity.self)
         } catch {
             // Nothing in the app works without a store, and there is no meaningful
             // recovery: a corrupt container needs a reinstall, not a retry.
@@ -36,6 +37,10 @@ struct OmniMusikApp: App {
             LocalMusicSource(container: container),
             AppleMusicSource()
         ]
+
+        // Playlists resolve their entries against the same source list, so a
+        // source added later becomes playable inside existing playlists too.
+        _playlistStore = State(initialValue: PlaylistStore(container: container, sources: sources))
 
         _searchService = State(initialValue: SearchService(sources: sources))
         _libraryStore = State(initialValue: LibraryStore(sources: sources))
@@ -54,6 +59,7 @@ struct OmniMusikApp: App {
                 .environment(searchService)
                 .environment(libraryStore)
                 .environment(auth)
+                .environment(playlistStore)
         }
         .modelContainer(container)
     }

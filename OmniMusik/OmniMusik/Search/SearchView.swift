@@ -21,6 +21,7 @@ struct SearchView: View {
     @Query private var localEntities: [LocalTrackEntity]
 
     @State private var query = ""
+    @State private var addToPlaylistTarget: Track?
 
     /// Saved effects travel with tracks played from search, so a track keeps its
     /// treatment no matter which screen started it.
@@ -37,6 +38,9 @@ struct SearchView: View {
             }
         }
         .navigationTitle("Search")
+        .sheet(item: $addToPlaylistTarget) { track in
+            AddToPlaylistView(track: track)
+        }
         .searchable(text: $query, prompt: "Songs and artists")
         .onChange(of: query) { _, newValue in
             search.search(newValue)
@@ -66,6 +70,11 @@ struct SearchView: View {
                         .onTapGesture {
                             Task {
                                 await coordinator.play(track, in: section.tracks, edits: editMap)
+                            }
+                        }
+                        .contextMenu {
+                            Button { addToPlaylistTarget = track } label: {
+                                Label("Add to Playlist", systemImage: "text.badge.plus")
                             }
                         }
                     }
