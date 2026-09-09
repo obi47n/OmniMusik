@@ -182,6 +182,32 @@ Sliders fill outward from a neutral origin rather than from the left edge, becau
 effect parameters are deviations from an unmodified signal and distance-from-neutral
 is the thing worth seeing at a glance.
 
+## Spotify: added as a third source; Web Playback SDK deferred
+
+The earlier entry deferred Spotify on the grounds that it proves the same
+architectural point as Apple Music at roughly the same cost. That still holds, with
+one thing it did not weigh: Apple Music is blocked on account provisioning with no
+date, and a Spotify developer account is free and instant. A second real source that
+can actually be built converts "I designed for extensibility" into "I extended it".
+
+It also independently validates the split rather than contradicting it. `SPTAppRemote`
+remote-controls the Spotify app and exposes no samples -- the SDK's own description is
+limited to "authorization, getting metadata... and issuing playback commands" -- so
+`supportsAudioEffects` is false for Spotify too, for the same structural reason as
+Apple Music. A third source that behaves like the second is evidence the model is
+right.
+
+Costs accepted: the Spotify app must be installed and the account must be Premium,
+and `SpotifyiOS` via SPM becomes the iOS app's first third-party dependency.
+
+**The Web Playback SDK is deferred, and this is a deliberate rejection rather than an
+oversight.** It would let a browser play Spotify audio, making the web client a real
+player for exactly one source. Rejected because it makes the source model inconsistent
+for one service's convenience: "playback is iOS-only, and here is the structural
+reason" is a clean line, while "playback is iOS-only except Spotify" invites a
+follow-up with no principled answer. It also needs Premium in the browser. Worth
+revisiting only if the web client's purpose changes from control plane to player.
+
 ## Rejected features
 
 - **Stems / source separation.** A machine-learning project wearing a tab.
