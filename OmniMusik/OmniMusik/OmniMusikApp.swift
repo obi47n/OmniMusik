@@ -16,6 +16,7 @@ struct OmniMusikApp: App {
     @State private var auth: AuthController
     @State private var playlistStore: PlaylistStore
     @State private var syncService: PlaylistSyncService
+    @State private var syncScheduler: PlaylistSyncScheduler
     @State private var connections: SourceConnectionCenter
     @State private var registry: MusicSourceRegistry
     private let spotify: SpotifySource
@@ -58,7 +59,8 @@ struct OmniMusikApp: App {
 
         // Playlists resolve their entries against the same source list, so a
         // source added later becomes playable inside existing playlists too.
-        _playlistStore = State(initialValue: PlaylistStore(container: container, sources: sources))
+        let playlistStore = PlaylistStore(container: container, sources: sources)
+        _playlistStore = State(initialValue: playlistStore)
 
         _registry = State(initialValue: MusicSourceRegistry(sources: sources))
         _searchService = State(initialValue: SearchService(sources: sources))
@@ -74,7 +76,23 @@ struct OmniMusikApp: App {
         let api = OmniMusikAPI(baseURL: APIConfiguration.baseURL) {
             try await auth.validAccessToken()
         }
-        _syncService = State(initialValue: PlaylistSyncService(container: container, api: api))
+        let syncService = PlaylistSyncService(container: container, api: api)
+        _syncService = State(initialValue: syncService)
+
+        // The store announces writes; the scheduler decides when they leave the
+        // device. Wired here because this is the only place that knows about both --
+        // the store still has no idea a server exists, and the scheduler has no idea
+        // what a playlist is.
+        let scheduler = PlaylistSyncScheduler(service: syncService) { [weak playlistStore] in
+            // Sync writes through its own context, so rows it pulled are on disk but
+            // not yet in the store's memory.
+            playlistStore?.reload()
+        }
+        _syncScheduler = State(initialValue: scheduler)
+
+        playlistStore.onLocalChange = { [weak scheduler] in
+            scheduler?.playlistsChangedLocally()
+        }
     }
 
     var body: some Scene {
@@ -87,6 +105,7 @@ struct OmniMusikApp: App {
                 .environment(auth)
                 .environment(playlistStore)
                 .environment(syncService)
+                .environment(syncScheduler)
                 .environment(connections)
                 .environment(registry)
                 .task {
@@ -103,6 +122,10 @@ struct OmniMusikApp: App {
                 .onChange(of: scenePhase) { _, phase in
                     HandoffLog.note("scenePhase -> \(phase)")
                     guard phase == .active else {
+                        // Anything waiting on the debounce would be suspended with
+                        // the app, so it goes now, under a background assertion.
+                        Task { await syncScheduler.appIsLeaving() }
+
                         // Backgrounding means the switch happened and the transition
                         // has served its purpose. Clearing it here rather than on a
                         // timer matters: a Task scheduled before the switch is
@@ -116,6 +139,10 @@ struct OmniMusikApp: App {
                     // Re-establishing it on return means the first track someone taps
                     // plays in place rather than bouncing them into Spotify.
                     Task { await spotifyProvider?.connectIfPossible() }
+
+                    // The moment to pull: anything edited on the web client happened
+                    // while this app was not running to hear about it.
+                    syncScheduler.appBecameActive()
                 }
 
                 if isLaunching {

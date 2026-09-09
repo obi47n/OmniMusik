@@ -106,16 +106,27 @@ struct PlaylistsView: View {
         }
     }
 
-    /// Reports sync state inline rather than as an alert.
+    /// Reports sync state inline rather than as an alert, and often reports nothing.
     ///
     /// Conflicts in particular must not be a modal: they are not errors, they are a
     /// decision waiting for a person, and interrupting them to say so would be worse
     /// than showing it in place.
+    ///
+    /// Syncing is automatic, which changes what this is for. Reporting every
+    /// background sync would put a banner on screen every time someone added a track
+    /// -- constant, uninformative, and the fastest way to make the one banner that
+    /// matters invisible. So progress and success are reported only for a sync
+    /// somebody actually asked for.
+    ///
+    /// Failures and conflicts are shown either way. Both mean edits are not where the
+    /// person thinks they are, and that is true regardless of who started the sync.
     @ViewBuilder
     private var syncBanner: some View {
         switch sync.status {
         case .syncing:
-            banner(text: "Syncing…", systemImage: "arrow.triangle.2.circlepath", tint: .secondary)
+            if sync.reason == .requested {
+                banner(text: "Syncing…", systemImage: "arrow.triangle.2.circlepath", tint: .secondary)
+            }
 
         case .failed(let message):
             banner(text: message, systemImage: "exclamationmark.triangle", tint: .orange)
@@ -127,7 +138,7 @@ struct PlaylistsView: View {
                     systemImage: "arrow.triangle.branch",
                     tint: Theme.accent
                 )
-            } else if pushed + pulled + deleted > 0 {
+            } else if sync.reason == .requested, pushed + pulled + deleted > 0 {
                 banner(
                     text: "Synced · \(pushed) up, \(pulled) down\(deleted > 0 ? ", \(deleted) removed" : "")",
                     systemImage: "checkmark.circle",

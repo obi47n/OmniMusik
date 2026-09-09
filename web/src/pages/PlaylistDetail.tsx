@@ -23,6 +23,7 @@ export function PlaylistDetail() {
   const [error, setError] = useState<string | null>(null)
   const [conflict, setConflict] = useState<Playlist | null>(null)
   const [busy, setBusy] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
   const adopt = useCallback((next: Playlist) => {
     setPlaylist(next)
@@ -94,6 +95,15 @@ export function PlaylistDetail() {
     }
   }
 
+  async function refresh() {
+    setRefreshing(true)
+    try {
+      await load()
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
   if (error && !playlist) {
     return (
       <div className="center">
@@ -149,6 +159,19 @@ export function PlaylistDetail() {
       <header className="bar" style={{ borderBottom: 'none', paddingTop: 0 }}>
         <input type="text" value={name} onChange={(e) => setName(e.target.value)} aria-label="Playlist name" />
         <div className="row-actions">
+          {/*
+            Re-reads the server, which is where a track added on the phone arrives.
+            Disabled while there are unsaved edits rather than warning about them:
+            this is a read that replaces everything on screen, so offering it next to
+            work someone has not saved is offering to discard that work.
+          */}
+          <button
+            onClick={() => void refresh()}
+            disabled={busy || refreshing || dirty}
+            title={dirty ? 'Save or discard your changes first' : undefined}
+          >
+            {refreshing ? 'Refreshing…' : 'Refresh'}
+          </button>
           <button className="primary" onClick={() => void save()} disabled={busy || !dirty}>
             {busy ? 'Saving…' : dirty ? 'Save' : 'Saved'}
           </button>

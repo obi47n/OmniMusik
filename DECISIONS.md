@@ -271,6 +271,51 @@ not present a permission prompt to a backgrounded app, so the request fails and 
 report is silently lost. Connecting Spotify is a foreground action and the first
 moment the permission means anything, which makes it the right place to ask.
 
+## Syncing is automatic, and the queue is the database
+
+Sync originally ran only when someone pressed a button, which made the button the
+feature. An edit made on the phone did not exist anywhere else until a person
+remembered to press it, and the web client -- which has no way to know that -- simply
+showed stale playlists and looked broken. Nobody should have to know a sync protocol
+exists.
+
+`PlaylistSyncScheduler` decides when; `PlaylistSyncService` still decides what. The
+split matters because the "what" is the part that was already correct and already
+tested, and it did not need touching.
+
+**The scheduler holds no queue.** Every edited row already carries `hasLocalChanges`,
+which survives a crash, a force-quit and a flat battery, and the sync service pushes
+whatever carries it whenever it runs. So nothing in the scheduler is load-bearing for
+correctness: a missed trigger delays an edit, it can never lose one. That is what
+makes it safe to coalesce aggressively, and it is why the answer to "what if the
+debounce is cancelled" is "nothing happens, the next trigger picks it up" rather than
+a retry queue that would need its own persistence and its own tests.
+
+Three triggers, each for a different reason. A local edit debounces two seconds,
+because adding five tracks is five writes in a few seconds and syncing each one means
+five round trips to push what one would carry -- and five chances for the server to
+move underneath the next, which surfaces a conflict to a person for something they
+experienced as a single action. Returning to the foreground syncs immediately and
+even with nothing to push, because that is the moment to *pull*: anything edited on
+the web happened while this app was not running to hear about it. Leaving the screen
+flushes under a background-task assertion, because a pending debounce is suspended
+along with the app and might not resume before the next launch.
+
+**Rejected: syncing on every write.** Simpler, and it is what the debounce exists to
+avoid. It converts one user action into a burst of round trips whose only distinctive
+outcome is a conflict report nobody can act on.
+
+**Rejected: a timer.** Polling on an interval spends battery on an app that is idle
+most of the time, and still cannot beat the foreground trigger to a change made
+elsewhere.
+
+The banner went quiet as a consequence. Reporting every background sync would put a
+banner on screen every time someone added a track -- constant, uninformative, and the
+fastest way to make the one banner that matters invisible. Progress and success are
+now reported only for a sync somebody asked for; failures and conflicts show either
+way, because both mean edits are not where the person thinks they are, which is true
+regardless of who started it.
+
 ## Rejected features
 
 - **Stems / source separation.** A machine-learning project wearing a tab.

@@ -29,7 +29,17 @@ final class PlaylistSyncService {
         case failed(String)
     }
 
+    /// Who asked for the most recent sync.
+    ///
+    /// The service reports the same thing either way; this exists so the UI can tell
+    /// the difference. A sync a person pressed a button for owes them an answer. One
+    /// that ran because they added a track does not -- narrating background work as
+    /// it happens is noise, and it teaches people to ignore the one banner that
+    /// matters.
+    enum Reason { case requested, automatic }
+
     private(set) var status: Status = .idle
+    private(set) var reason: Reason = .requested
 
     /// Playlists where both sides moved. Left untouched until a person chooses.
     private(set) var conflicts: [UUID] = []
@@ -44,7 +54,9 @@ final class PlaylistSyncService {
 
     var isConfigured: Bool { api.isConfigured }
 
-    func sync() async {
+    func sync(reason: Reason = .requested) async {
+        self.reason = reason
+
         guard api.isConfigured else {
             status = .failed("Sync isn't configured in this build yet.")
             return

@@ -22,6 +22,13 @@ final class PlaylistStore {
 
     private(set) var playlists: [Playlist] = []
 
+    /// Called after any write that actually changed something.
+    ///
+    /// The store deliberately does not know what a sync is -- it announces that it
+    /// wrote, and whoever cares decides what that means. Set at wiring time in
+    /// `OmniMusikApp`, which is the one place that already knows about both.
+    var onLocalChange: (() -> Void)?
+
     private let context: ModelContext
     private let sources: [any MusicSource]
 
@@ -177,5 +184,10 @@ final class PlaylistStore {
     private func save() {
         try? context.save()
         reload()
+
+        // Every path to here has already established that something changed:
+        // `update` returns early when the playlist is equal to what it was, and
+        // create and delete are changes by definition.
+        onLocalChange?()
     }
 }

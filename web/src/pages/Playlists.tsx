@@ -22,6 +22,7 @@ export function Playlists() {
   const [error, setError] = useState<string | null>(null)
   const [newName, setNewName] = useState('')
   const [busy, setBusy] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -35,6 +36,18 @@ export function Playlists() {
   useEffect(() => {
     void load()
   }, [load])
+
+  // The phone pushes edits on its own, so this page goes stale rather than wrong:
+  // what it shows was true when it loaded. Refreshing is therefore a read, not a
+  // sync -- there is nothing on this side waiting to go anywhere.
+  async function refresh() {
+    setRefreshing(true)
+    try {
+      await load()
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
   async function create() {
     const name = newName.trim()
@@ -70,6 +83,9 @@ export function Playlists() {
       <header className="bar" style={{ borderBottom: 'none', marginBottom: 14, paddingTop: 0 }}>
         <h2>Playlists</h2>
         <div className="row-actions">
+          <button onClick={() => void refresh()} disabled={refreshing}>
+            {refreshing ? 'Refreshing…' : 'Refresh'}
+          </button>
           <input
             type="text"
             placeholder="New playlist name"
