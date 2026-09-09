@@ -1,0 +1,34 @@
+# Xcode
+build/
+DerivedData/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.moved-aside
+*.xccheckout
+*.xcscmblueprint
+*.xcuserstate
+.DS_Store
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Packages/
+Package.resolved
+
+# Secrets — never commit signing assets or API keys
+*.p8
+*.p12
+*.mobileprovision
+*.cer
+Secrets.xcconfig
+
+# Scratch: sandbox shell cannot delete files, so discards land here
+_to_delete/
+.commit-msg-*.txt
