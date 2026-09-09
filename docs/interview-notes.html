@@ -699,6 +699,29 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
     </div>
   </div>
 
+  <h3>The client half of it</h3>
+  <p>The device&rsquo;s side of sync is a <strong>pure function over three inputs</strong>: whether the local copy has unsynced edits, the version this device last matched, and the server&rsquo;s current version. Everything that makes sync bugs hard to reproduce &mdash; two devices, a particular interleaving, a network failure at the right moment &mdash; is in the plumbing around it, and none of it is in the decision.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Local edits</th><th>Last synced</th><th>Server now</th><th>Decision</th></tr></thead>
+      <tbody>
+        <tr><td>any</td><td>never</td><td>absent</td><td>Push &mdash; created here</td></tr>
+        <tr><td>no</td><td>v3</td><td>absent</td><td>Delete locally &mdash; removed elsewhere</td></tr>
+        <tr><td>yes</td><td>v3</td><td>absent</td><td><strong>Conflict</strong></td></tr>
+        <tr><td>any</td><td>never</td><td>v2</td><td><strong>Conflict</strong> &mdash; two histories, one id</td></tr>
+        <tr><td>no</td><td>v5</td><td>v5</td><td>Up to date</td></tr>
+        <tr><td>yes</td><td>v5</td><td>v5</td><td>Push</td></tr>
+        <tr><td>no</td><td>v5</td><td>v7</td><td>Pull</td></tr>
+        <tr><td>yes</td><td>v5</td><td>v7</td><td><strong>Conflict</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>Two rows are worth defending unprompted. &ldquo;Deleted remotely but edited locally&rdquo; is a conflict rather than a deletion, because re-creating something a person deleted on another device is exactly as wrong as discarding work they did on this one. And versions are compared rather than timestamps, because clocks on two devices disagree and an edit made offline can carry a <em>later</em> timestamp than the server state it is actually behind.</p>
+
+  <p>Two of the tests are property-based rather than case-based: across the whole input space, no combination may ever pull or delete while unsynced local edits exist. That way a later edit to the table cannot quietly break the guarantee the feature exists to provide.</p>
+
   <h3>Infrastructure, briefly</h3>
   <p>App Runner rather than ECS Fargate, chosen against a fixed deadline: the container pipeline, private networking and IAM boundaries are all there; the ALB, target groups and task definitions are not. Being able to say when you would switch is the part that matters.</p>
   <p>The detail worth having ready: an App Runner <strong>VPC connector routes all outbound traffic through the VPC</strong>, so once attached the service can no longer reach Cognito&rsquo;s JWKS endpoint without a NAT gateway &mdash; and token validation then fails as a timeout that looks nothing like a networking problem. One NAT in a single AZ is a deliberate cost tradeoff, with an interface endpoint for <code>cognito-idp</code> as the cheaper alternative.</p>
@@ -765,7 +788,7 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
   <p class="section-note">Prepared answers for &ldquo;what would you do differently.&rdquo; Volunteering these reads as judgment; being caught out by them does not.</p>
 
   <h3>Test coverage is real but narrow</h3>
-  <p>40 tests pass: 33 unit tests over the playlist rules, <code>AudioEdit</code> identity, Codable round trips, and the renderer&rsquo;s timeline arithmetic, plus 7 UI tests driving each subsystem end to end.</p>
+  <p>62 tests pass: 39 iOS unit tests (playlist rules, <code>AudioEdit</code> identity, Codable round trips, the renderer&rsquo;s timeline arithmetic, the sync decision table), 11 iOS UI tests driving each subsystem end to end, and 12 backend integration tests over the sync semantics.</p>
   <p>What is <strong>not</strong> covered: the generation counter and the trim arithmetic inside <code>LocalPlaybackProvider</code>, which need an engine to exercise and are the two places a bug would be both likely and invisible. Nor is anything about how the audio actually sounds &mdash; the export tests assert duration, not fidelity. Describe this as &ldquo;the domain logic is tested and the subsystems are smoke-tested&rdquo;, which is true, rather than &ldquo;it has tests&rdquo;, which invites the wrong follow-up.</p>
 
   <h3>Effects will never work on Apple Music</h3>
@@ -837,7 +860,11 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
     </div>
     <div class="rapid-item">
       <p class="rapid-q">Anything surprising about testing SwiftUI?</p>
-      <p class="rapid-a"><code>accessibilityIdentifier</code> propagates to every descendant, and an identifier on an enclosing container silently overwrites a more specific one on a child. A mini&#8209;player test failed against a button that was on screen and working, because the container&rsquo;s identifier had replaced the button&rsquo;s. The element hierarchy captured in the <code>.xcresult</code> bundle is what showed it &mdash; worth knowing that XCTest records that automatically on failure.</p>
+      <p class="rapid-a"><code>accessibilityIdentifier</code> propagates to every descendant, and one on a container silently overwrites a more specific one on a child. A mini&#8209;player test failed against a button that was on screen and working, for exactly that reason. The element hierarchy XCTest records into the <code>.xcresult</code> on failure is what showed it.</p>
+    </div>
+    <div class="rapid-item">
+      <p class="rapid-q">How did you deal with flaky UI tests?</p>
+      <p class="rapid-a">By finding the causes rather than adding sleeps. Three of them: existence and hittability are different states, and a tap during the animation window lands nowhere <em>silently</em>, so the test fails later at whatever the tap should have produced; a context menu swallows a tap that arrives while it is settling, leaving the menu up; and xcodebuild spreads the suite across parallel simulator clones, which widens both windows. Waiting for hittability, retrying the menu tap, and a shared scheme with <code>parallelizable="NO"</code> made it deterministic &mdash; a different test had been failing on each run while every one passed in isolation.</p>
     </div>
     <div class="rapid-item">
       <p class="rapid-q">Why App Runner rather than ECS Fargate?</p>

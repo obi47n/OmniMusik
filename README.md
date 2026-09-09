@@ -109,14 +109,18 @@ rejected. A few that shape the code:
 | Lock screen, remote commands, interruption handling | Implemented; background audio needs device confirmation |
 | Sync API — auth, accounts, playlist CRUD, conflict handling | Builds; 12 integration tests pass against H2 |
 | Web control plane — sign-in, playlist editing, conflict UX | Builds; not yet run against a live API |
+| iOS sync client — decision table, API client, conflict surfacing | Unit-tested; never run against a live service |
 | Terraform for the whole stack | `validate` passes; **never applied** |
 | iOS and web sign-in | Scaffolded — no Cognito user pool provisioned yet |
 | Apple Music | Deliberate stub; blocked on App Service provisioning |
 
-Tests: 40 on iOS (playlist rules, `AudioEdit` identity and Codable round trips, the
-renderer's timeline arithmetic, plus UI smoke tests driving each subsystem end to
-end) and 12 on the backend (sync semantics, ownership isolation, and the wire format
-the iOS client depends on).
+Tests: 50 on iOS (39 unit tests over the playlist rules, `AudioEdit` identity and
+Codable round trips, the renderer's timeline arithmetic and the sync decision table,
+plus 11 UI tests driving each subsystem end to end) and 12 on the backend (sync
+semantics, ownership isolation, and the wire format the iOS client depends on).
+
+The iOS UI suite runs serially by design — the shared scheme sets
+`parallelizable="NO"`, because parallel simulator clones made it flaky.
 
 Nothing is deployed. The Terraform has never been applied, no Cognito user pool
 exists, and neither client has ever completed a real sign-in.
