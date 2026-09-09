@@ -35,9 +35,19 @@ struct CognitoConfiguration: Sendable {
     var tokenURL: URL? { URL(string: "https://\(domain)/oauth2/token") }
     var logoutURL: URL? { URL(string: "https://\(domain)/logout") }
 
+    /// The deployed user pool, from `terraform output`.
+    ///
+    /// Not secrets: the app client is public and has no secret, because a native
+    /// binary cannot keep one. PKCE is what secures the exchange.
+    static let deployed = CognitoConfiguration(
+        domain: "omnimusik-463092208222.auth.us-east-1.amazoncognito.com",
+        clientID: "533bcjsr65iq88t7vg2kmetrkp",
+        redirectScheme: "omnimusik"
+    )
+
     /// Placeholders. `AuthProvider.isConfigured` reports false while these are in
-    /// place, so a fresh checkout explains itself on the account screen instead
-    /// of failing when someone taps sign in.
+    /// place, so a checkout without a deployment explains itself on the account
+    /// screen instead of failing when someone taps sign in.
     static let unconfigured = CognitoConfiguration(
         domain: "REPLACE_ME.auth.us-east-1.amazoncognito.com",
         clientID: "REPLACE_ME",

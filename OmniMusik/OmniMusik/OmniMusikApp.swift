@@ -48,7 +48,7 @@ struct OmniMusikApp: App {
 
         // The provider is the only Cognito-aware object in the app; everything
         // else sees `AuthController` and the vendor-neutral types behind it.
-        let auth = AuthController(provider: CognitoAuthProvider(configuration: .unconfigured))
+        let auth = AuthController(provider: CognitoAuthProvider(configuration: .deployed))
         _auth = State(initialValue: auth)
 
         // The API takes a token provider rather than the controller itself, so the

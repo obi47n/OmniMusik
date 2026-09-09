@@ -123,18 +123,42 @@ resource "aws_security_group" "vpc_endpoints" {
 
 # The one route out of the VPC: Cognito's JWKS, so the resource server can verify
 # token signatures.
-#
-# Placed in a single subnet rather than both. An interface endpoint bills per ENI per
-# hour, so two AZs double the cost for redundancy this deployment does not need;
-# private DNS still resolves from the other subnet, at a fraction of a cent in
-# cross-AZ transfer. Production would use both.
+
+# Interface endpoints are not offered in every availability zone, and the set differs
+# per service and per region -- cognito-idp in us-east-1 covers b, c and d but not a.
+# Hardcoding a subnet index fails with "does not support the availability zone of the
+# subnet", which names the subnet rather than the reason. Asking the service which
+# AZs it supports and intersecting with our own subnets is both self-correcting and a
+# clearer statement of the actual constraint.
+data "aws_vpc_endpoint_service" "cognito_idp" {
+  service_name = "com.amazonaws.${var.region}.cognito-idp"
+}
+
+locals {
+  endpoint_capable_subnets = [
+    for subnet in aws_subnet.private : subnet.id
+    if contains(data.aws_vpc_endpoint_service.cognito_idp.availability_zones, subnet.availability_zone)
+  ]
+}
+
+# One subnet rather than all of them: an interface endpoint bills per ENI per hour, so
+# additional AZs double the cost for redundancy this deployment does not need. Private
+# DNS still resolves from the other subnet, at a fraction of a cent in cross-AZ
+# transfer. Production would use every capable subnet.
 resource "aws_vpc_endpoint" "cognito_idp" {
   vpc_id              = aws_vpc.main.id
-  service_name        = "com.amazonaws.${var.region}.cognito-idp"
+  service_name        = data.aws_vpc_endpoint_service.cognito_idp.service_name
   vpc_endpoint_type   = "Interface"
-  subnet_ids          = [aws_subnet.private[0].id]
+  subnet_ids          = slice(local.endpoint_capable_subnets, 0, 1)
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   private_dns_enabled = true
+
+  lifecycle {
+    precondition {
+      condition     = length(local.endpoint_capable_subnets) > 0
+      error_message = "No private subnet sits in an AZ that offers the cognito-idp endpoint. Move the subnets into ${join(", ", data.aws_vpc_endpoint_service.cognito_idp.availability_zones)}."
+    }
+  }
 
   tags = { Name = "${var.project}-cognito-idp" }
 }
