@@ -428,6 +428,7 @@
 				DEVELOPMENT_ASSET_PATHS = "\"OmniMusik/Preview Content\"";
 				DEVELOPMENT_TEAM = ZMGW76C4X2;
 				ENABLE_PREVIEWS = YES;
+				EXCLUDED_SOURCE_FILE_NAMES = "*.mp3";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
