@@ -33,25 +33,6 @@ final class SpotifyPlaybackProvider: NSObject, PlaybackProvider {
 
     private let accessToken: () async throws -> String
 
-    /// Which path a play took.
-    ///
-    /// Structured rather than a string, because one case is user-facing: waking
-    /// Spotify switches apps, and an unexplained switch reads as a glitch.
-    enum Handoff {
-        /// Played through the existing connection. Nothing visible happened.
-        case playedInPlace(reconnected: Bool)
-
-        /// Spotify had been suspended by iOS and had to be woken, which foregrounds
-        /// it. Unavoidable — see DECISIONS.md.
-        case wokeSpotify
-
-        case disconnected(reason: String)
-    }
-
-    /// Reports which path `play()` took. Reasoning about this from the outside was
-    /// wrong three times; this reports what actually happened.
-    var onHandoff: ((Handoff) -> Void)?
-
     /// Fired just *before* Spotify is woken, so the UI can present the switch as
     /// something the app is doing rather than something happening to it. The wake is
     /// briefly delayed to let that land.
@@ -180,8 +161,6 @@ final class SpotifyPlaybackProvider: NSObject, PlaybackProvider {
         // missing rather than the token being old.
         appRemote.connectionParameters.accessToken = try await accessToken()
 
-        let wasConnected = appRemote.isConnected
-
         // Try the quiet path first: if Spotify is running at all, this connects
         // without a foreground switch and playback is driven entirely from here.
         if !appRemote.isConnected {
@@ -189,12 +168,10 @@ final class SpotifyPlaybackProvider: NSObject, PlaybackProvider {
         }
 
         if appRemote.isConnected {
-            onHandoff?(.playedInPlace(reconnected: !wasConnected))
             appRemote.playerAPI?.play(uri, callback: nil)
             playing = true
             lastReportedAt = Date()
         } else {
-            onHandoff?(.wokeSpotify)
             // Spotify is not running, so there is nothing to connect to. This wakes
             // it, which does switch apps -- unavoidable, and the only time it should
             // happen. Once connected, subsequent tracks take the path above.
@@ -307,7 +284,6 @@ extension SpotifyPlaybackProvider: SPTAppRemoteDelegate {
 
     nonisolated func appRemote(_ appRemote: SPTAppRemote, didDisconnectWithError error: Error?) {
         MainActor.assumeIsolated {
-            onHandoff?(.disconnected(reason: error?.localizedDescription ?? "no reason given"))
             playing = false
             lastReportedAt = nil
             settleConnectionWaiters(false)
