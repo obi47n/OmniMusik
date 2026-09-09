@@ -91,8 +91,16 @@ resource "aws_cloudfront_distribution" "web" {
     }
   }
 
+  # Own domain when one is configured, CloudFront's default name otherwise. The
+  # certificate must be the *validated* one: referencing the certificate resource
+  # directly would hand CloudFront a pending certificate and fail the apply.
+  aliases = local.web_hostnames
+
   viewer_certificate {
-    cloudfront_default_certificate = true
+    cloudfront_default_certificate = !local.domain_enabled
+    acm_certificate_arn            = local.domain_enabled ? aws_acm_certificate_validation.web[0].certificate_arn : null
+    ssl_support_method             = local.domain_enabled ? "sni-only" : null
+    minimum_protocol_version       = local.domain_enabled ? "TLSv1.2_2021" : null
   }
 }
 

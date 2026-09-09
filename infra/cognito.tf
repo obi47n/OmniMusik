@@ -87,16 +87,22 @@ resource "aws_cognito_user_pool_client" "app" {
   # against the same pool and differ only in redirect URI.
   # Both the deployed client and a local dev server. Keeping localhost registered
   # means development does not need a second app client that can drift from this one.
-  callback_urls = [
-    "https://${aws_cloudfront_distribution.web.domain_name}/callback",
-    "${var.web_origin}/callback",
-    "${var.ios_redirect_scheme}://auth",
-  ]
-  logout_urls = [
-    "https://${aws_cloudfront_distribution.web.domain_name}",
-    var.web_origin,
-    "${var.ios_redirect_scheme}://auth",
-  ]
+  callback_urls = concat(
+    [for o in local.web_custom_origins : "${o}/callback"],
+    [
+      "https://${aws_cloudfront_distribution.web.domain_name}/callback",
+      "${var.web_origin}/callback",
+      "${var.ios_redirect_scheme}://auth",
+    ]
+  )
+  logout_urls = concat(
+    local.web_custom_origins,
+    [
+      "https://${aws_cloudfront_distribution.web.domain_name}",
+      var.web_origin,
+      "${var.ios_redirect_scheme}://auth",
+    ]
+  )
 
   supported_identity_providers = concat(
     ["COGNITO"],

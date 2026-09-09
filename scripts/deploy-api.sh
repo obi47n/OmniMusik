@@ -51,6 +51,11 @@ DB_SECRET=$(aws secretsmanager list-secrets --region "$REGION" \
   --query "SecretList[?starts_with(Name,'$PROJECT/database')].ARN" --output text)
 POOL_ID=$(aws cognito-idp list-user-pools --max-results 60 --region "$REGION" \
   --query "UserPools[?Name=='$PROJECT'].Id" --output text)
+# The web client's own domain, if one has been put in front of CloudFront: the
+# distribution lists it as an alias. Empty until then.
+CUSTOM_ORIGINS=$(aws cloudfront list-distributions \
+  --query "DistributionList.Items[?contains(Origins.Items[0].DomainName,'$PROJECT-web')].Aliases.Items[] | [*]" --output text 2>/dev/null \
+  | tr '\t' '\n' | sed 's|^|https://|' | paste -sd, -)
 CF_DOMAIN="https://$(aws cloudfront list-distributions \
   --query "DistributionList.Items[?contains(Origins.Items[0].DomainName,'$PROJECT-web')].DomainName | [0]" --output text)"
 
@@ -58,9 +63,9 @@ for v in EXEC_ROLE TASK_ROLE INFRA_ROLE TASK_SG SUBNETS ECR_URL DB_HOST DB_SECRE
   if [ -z "${!v}" ] || [ "${!v}" = "None" ]; then echo "Could not resolve $v" >&2; exit 1; fi
 done
 
-CONTAINER=$(python3 - "$IMAGE" "$LOG_GROUP" "$DB_HOST" "$DB_SECRET" "$POOL_ID" "$CF_DOMAIN" "$REGION" <<'PY'
+CONTAINER=$(python3 - "$IMAGE" "$LOG_GROUP" "$DB_HOST" "$DB_SECRET" "$POOL_ID" "$CF_DOMAIN" "$REGION" "$CUSTOM_ORIGINS" <<'PY'
 import json, sys
-image, log_group, db_host, db_secret, pool_id, cf_domain, region = sys.argv[1:8]
+image, log_group, db_host, db_secret, pool_id, cf_domain, region, custom_origins = sys.argv[1:9]
 print(json.dumps({
     "image": image,
     "containerPort": 8080,
@@ -71,7 +76,8 @@ print(json.dumps({
         {"name": "DB_PORT", "value": "5432"},
         {"name": "DB_NAME", "value": "omnimusik"},
         {"name": "DB_USER", "value": "omnimusik"},
-        {"name": "ALLOWED_ORIGINS", "value": f"{cf_domain},http://localhost:5173"},
+        {"name": "ALLOWED_ORIGINS",
+         "value": ",".join(o for o in [custom_origins, cf_domain, "http://localhost:5173"] if o)},
         {"name": "COGNITO_ISSUER_URI",
          "value": f"https://cognito-idp.{region}.amazonaws.com/{pool_id}"},
     ],
