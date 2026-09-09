@@ -78,6 +78,53 @@ struct PlaylistStoreTests {
         #expect(store.playlist(id: playlist.id)?.name == "Renamed")
     }
 
+    @Test("A local file and a Spotify track live in the same playlist, in order")
+    func playlistMixesSources() throws {
+        let (store, _) = try makeStore()
+        let playlist = try #require(store.create(named: "Mixed"))
+
+        let mp3 = Track(
+            title: "Local One", artist: "Someone", duration: 120,
+            source: .local, sourceID: "a.mp3"
+        )
+        let streamed = Track(
+            title: "Streamed", artist: "Another", duration: 200,
+            source: .spotify, sourceID: "4cOdK2wGLETKBW3PvgPWqT"
+        )
+
+        store.add(mp3, to: playlist.id)
+        store.add(streamed, to: playlist.id)
+
+        let saved = try #require(store.playlist(id: playlist.id))
+        #expect(saved.trackCount == 2)
+        #expect(saved.isCrossSource, "A playlist holding both sources must report itself mixed.")
+        #expect(saved.sources == [.local, .spotify])
+
+        // Order is insertion order, not grouped by source.
+        #expect(saved.entries.map(\.source) == [.local, .spotify])
+        #expect(saved.entries.map(\.sourceID) == ["a.mp3", "4cOdK2wGLETKBW3PvgPWqT"])
+
+        // Duration sums across sources from the stored snapshots, so it is
+        // answerable without reaching Spotify.
+        #expect(saved.totalDuration == 320)
+    }
+
+    @Test("A mixed playlist survives being reloaded from the store")
+    func mixedPlaylistPersists() throws {
+        let (store, container) = try makeStore()
+        let playlist = try #require(store.create(named: "Mixed"))
+
+        store.add(Track(title: "L", artist: "A", duration: 10, source: .local, sourceID: "a.mp3"), to: playlist.id)
+        store.add(Track(title: "S", artist: "B", duration: 20, source: .spotify, sourceID: "xyz"), to: playlist.id)
+
+        // A fresh store over the same container: what a relaunch sees.
+        let reopened = PlaylistStore(container: container, sources: [])
+        let saved = try #require(reopened.playlist(id: playlist.id))
+
+        #expect(saved.isCrossSource)
+        #expect(saved.entries.map(\.source) == [.local, .spotify])
+    }
+
     @Test("Adding a track marks the playlist for upload")
     func addingTrackDirties() throws {
         let (store, container) = try makeStore()

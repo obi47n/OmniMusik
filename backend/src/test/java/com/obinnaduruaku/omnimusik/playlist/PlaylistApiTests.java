@@ -105,6 +105,37 @@ class PlaylistApiTests {
     }
 
     @Test
+    @DisplayName("Every source the client can produce is accepted")
+    void everyClientSourceIsAccepted() throws Exception {
+        // A playlist holding one entry from each source the iOS app can create.
+        // Adding a case to Swift's TrackSource is a compile error there and silence
+        // here, so a new source becomes a 400 on sync until this enum catches up --
+        // which is precisely what happened when Spotify was added.
+        String allSources = "[" +
+                "{\"id\":\"11111111-1111-1111-1111-111111111111\",\"source\":\"local\"," +
+                "\"sourceID\":\"a.mp3\",\"title\":\"Local\",\"artist\":\"A\",\"duration\":10.0}," +
+                "{\"id\":\"22222222-2222-2222-2222-222222222222\",\"source\":\"appleMusic\"," +
+                "\"sourceID\":\"1440857781\",\"title\":\"Apple\",\"artist\":\"B\",\"duration\":20.0}," +
+                "{\"id\":\"33333333-3333-3333-3333-333333333333\",\"source\":\"spotify\"," +
+                "\"sourceID\":\"4cOdK2wGLETKBW3PvgPWqT\",\"title\":\"Spotify\",\"artist\":\"C\",\"duration\":30.0}]";
+
+        UUID id = UUID.randomUUID();
+        mvc.perform(MockMvcRequestBuilders.put("/api/v1/playlists/{id}", id)
+                        .with(asUser("all-sources-user"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body("Everything", null, allSources)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.entries[0].source").value("local"))
+                .andExpect(jsonPath("$.entries[1].source").value("appleMusic"))
+                .andExpect(jsonPath("$.entries[2].source").value("spotify"));
+
+        mvc.perform(MockMvcRequestBuilders.get("/api/v1/playlists/{id}", id)
+                        .with(asUser("all-sources-user")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entries[2].sourceID").value("4cOdK2wGLETKBW3PvgPWqT"));
+    }
+
+    @Test
     @DisplayName("Order is preserved, because order is the point of a playlist")
     void orderIsPreserved() throws Exception {
         UUID id = UUID.randomUUID();

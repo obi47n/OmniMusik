@@ -46,6 +46,21 @@ struct LibraryView: View {
         [.all] + TrackSource.allCases.map { SourceFilter.source($0) }
     }
 
+    /// Explains an empty filtered list, naming the service when one is selected.
+    ///
+    /// Filtering to a service that has not been connected previously showed an empty
+    /// list and nothing else, which reads as broken rather than as "not set up yet".
+    private var emptyFilterMessage: String {
+        switch filter {
+        case .all:
+            "No tracks yet."
+        case .source(let source) where source == .local:
+            "No imported files yet."
+        case .source(let source):
+            "Nothing from \(source.displayName) yet. Connect it in Account to browse and add its tracks."
+        }
+    }
+
     private var entitiesByID: [UUID: LocalTrackEntity] {
         Dictionary(uniqueKeysWithValues: entities.map { ($0.id, $0) })
     }
@@ -243,7 +258,7 @@ struct LibraryView: View {
         ContentUnavailableView {
             Label("Nothing Here", systemImage: "line.3.horizontal.decrease.circle")
         } description: {
-            Text("No tracks from this source yet.")
+            Text(emptyFilterMessage)
         }
         .frame(maxHeight: .infinity)
     }

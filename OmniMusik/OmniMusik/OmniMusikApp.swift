@@ -17,6 +17,7 @@ struct OmniMusikApp: App {
     @State private var playlistStore: PlaylistStore
     @State private var syncService: PlaylistSyncService
     @State private var connections: SourceConnectionCenter
+    @State private var registry: MusicSourceRegistry
     private let spotify: SpotifySource
     @State private var spotifyProvider: SpotifyPlaybackProvider?
     @Environment(\.scenePhase) private var scenePhase
@@ -56,6 +57,7 @@ struct OmniMusikApp: App {
         // source added later becomes playable inside existing playlists too.
         _playlistStore = State(initialValue: PlaylistStore(container: container, sources: sources))
 
+        _registry = State(initialValue: MusicSourceRegistry(sources: sources))
         _searchService = State(initialValue: SearchService(sources: sources))
         _libraryStore = State(initialValue: LibraryStore(sources: sources))
 
@@ -82,6 +84,7 @@ struct OmniMusikApp: App {
                 .environment(playlistStore)
                 .environment(syncService)
                 .environment(connections)
+                .environment(registry)
                 .task {
                     // Spotify playback needs a token from the connected source. Done
                     // here rather than in the coordinator so the coordinator keeps no

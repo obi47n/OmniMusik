@@ -7,7 +7,7 @@
  * would break decoding on device, and nowhere else.
  */
 
-export type TrackSource = 'local' | 'appleMusic'
+export type TrackSource = 'local' | 'appleMusic' | 'spotify'
 
 export interface PlaylistEntry {
   id: string
@@ -44,8 +44,22 @@ export interface Account {
   createdAt: string
 }
 
+const SOURCE_LABELS: Record<TrackSource, string> = {
+  local: 'Local',
+  appleMusic: 'Apple Music',
+  spotify: 'Spotify',
+}
+
+/**
+ * A lookup rather than a conditional.
+ *
+ * The previous `source === 'local' ? 'Local' : 'Apple Music'` silently labelled every
+ * new source as Apple Music. A Record keyed by the union makes TypeScript refuse to
+ * compile until a new source is named — the nearest thing here to Swift's exhaustive
+ * switch, which is what caught the same omission on the client.
+ */
 export const sourceLabel = (source: TrackSource): string =>
-  source === 'local' ? 'Local' : 'Apple Music'
+  SOURCE_LABELS[source] ?? source
 
 export function formatDuration(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) return '--:--'

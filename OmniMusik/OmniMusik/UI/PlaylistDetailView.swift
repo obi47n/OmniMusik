@@ -27,6 +27,7 @@ struct PlaylistDetailView: View {
     @State private var isResolving = false
     @State private var isRenaming = false
     @State private var draftName = ""
+    @State private var isAddingSongs = false
 
     private var playlist: Playlist? { store.playlist(id: playlistID) }
 
@@ -50,6 +51,12 @@ struct PlaylistDetailView: View {
                 ToolbarItem(placement: .topBarTrailing) { EditButton() }
             }
             ToolbarItem(placement: .topBarTrailing) {
+                Button { isAddingSongs = true } label: {
+                    Label("Add Songs", systemImage: "plus")
+                }
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     draftName = playlist?.name ?? ""
                     isRenaming = true
@@ -63,6 +70,11 @@ struct PlaylistDetailView: View {
             Button("Cancel", role: .cancel) {}
             Button("Save") { store.rename(id: playlistID, to: draftName) }
         }
+        .sheet(isPresented: $isAddingSongs) {
+            AddSongsView(playlistID: playlistID)
+        }
+        // Keyed on the entry count so closing the picker re-resolves whatever was
+        // added, without polling.
         .task(id: playlist?.entries.count) { await resolveEntries() }
     }
 
@@ -118,7 +130,10 @@ struct PlaylistDetailView: View {
             ContentUnavailableView {
                 Label("Nothing Here Yet", systemImage: "music.note.list")
             } description: {
-                Text("Add tracks from the library or from search.")
+                Text("Mix your own files with anything from a connected service.")
+            } actions: {
+                Button("Add Songs") { isAddingSongs = true }
+                    .buttonStyle(.borderedProminent)
             }
         } else {
             VStack(spacing: 0) {
