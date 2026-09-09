@@ -257,14 +257,24 @@ final class OmniMusikUITests: XCTestCase {
 
     // MARK: - Account
 
-    func testAccountTabReportsSignInIsNotConfigured() {
+    /// The account screen offers sign-in now that a pool is deployed.
+    ///
+    /// This previously asserted the opposite -- that the screen explained itself as
+    /// unconfigured -- which was correct until the Terraform was applied. Pointing
+    /// the app at a real pool made the old assertion fail, which is the test doing
+    /// its job: configuration changed and something had to acknowledge it.
+    func testAccountTabOffersSignIn() {
         tapWhenReady(app.buttons["Account"], "Account tab was not tappable.")
 
-        // Cognito has no user pool yet, so the honest state is an explanation rather
-        // than a button that cannot work.
-        waitForExistence(
-            app.staticTexts["Sign-in not configured in this build"],
-            "Account screen did not report its unconfigured state."
+        waitForExistence(app.staticTexts["Sign in to sync"], "Account screen did not render.")
+
+        let signIn = app.buttons["Sign In"]
+        waitForExistence(signIn, "Account screen did not offer sign-in despite a configured pool.")
+        XCTAssertTrue(signIn.isEnabled, "Sign In was present but disabled.")
+
+        XCTAssertFalse(
+            app.staticTexts["Sign-in not configured in this build"].exists,
+            "Account screen still reports itself unconfigured."
         )
     }
 }
