@@ -60,6 +60,13 @@ merge them.
   deactivate it and iOS does not hand it back.
 - Effects split into **parametric** (live node mutation) and **structural** (trim,
   requires reschedule). Only trim reschedules, only when bounds actually move.
+- `UIBackgroundModes` comes from an explicit `OmniMusik/Info.plist`, not from
+  `INFOPLIST_KEY_UIBackgroundModes`. Xcode's generated-plist mechanism honors only
+  a fixed whitelist of `INFOPLIST_KEY_*` settings and `UIBackgroundModes` is not on
+  it, so that setting resolves in `-showBuildSettings` and is then silently dropped
+  from the built plist. That was the cause of playback dying on lock. The partial
+  plist sits at SRCROOT, outside the synchronized folder so Xcode does not treat it
+  as a resource; `GENERATE_INFOPLIST_FILE` stays `YES` and merges on top of it.
 
 ## Conventions
 
@@ -81,15 +88,9 @@ Not done: offline render export, MusicKit integration, Omni playlists (cross-sou
 queue view, tests, README and demo materials. Backend and web app are a later phase —
 Sign in with Apple is the chosen auth, behind a thin interface.
 
-## Open bug
+## Open bugs
 
-Playback stops the moment the phone locks. Lock screen populates correctly, so
-`NowPlayingCenter` is working and iOS is suspending the app.
-`INFOPLIST_KEY_UIBackgroundModes = audio` is confirmed present in both app-target
-build configs. Unverified: whether the **built** `Info.plist` contains it, and
-whether it is an array (correct) or a bare string (silently ignored by iOS).
-Check `DerivedData/.../OmniMusik.app/Info.plist`. If the type is wrong, replace the
-generated plist with an explicit `Info.plist`.
+None known.
 
 ## Notes
 

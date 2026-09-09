@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Xcode's generated-Info.plist mechanism only honors a fixed whitelist of
+	     INFOPLIST_KEY_* build settings, and UIBackgroundModes is not on it. Setting
+	     INFOPLIST_KEY_UIBackgroundModes in the pbxproj resolves in the build
+	     settings and is then silently dropped from the generated plist, so the app
+	     ships with no audio background mode and iOS suspends it the moment the
+	     screen locks. This partial plist supplies the key for real. Every other
+	     Info.plist key is still generated: GENERATE_INFOPLIST_FILE stays YES and
+	     Xcode merges its output on top of this file. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
+</dict>
+</plist>
