@@ -21,6 +21,10 @@ struct ContentView: View {
             Tab("Search", systemImage: "magnifyingglass") {
                 NavigationStack { SearchView() }
             }
+
+            Tab("Account", systemImage: "person.crop.circle") {
+                NavigationStack { AccountView() }
+            }
         }
         // safeAreaInset rather than iOS 26's .tabViewBottomAccessory: the deployment
         // target is iOS 18, and this docks the player above the tab bar on every

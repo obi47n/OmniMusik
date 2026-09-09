@@ -13,6 +13,7 @@ struct OmniMusikApp: App {
     @State private var coordinator = PlaybackCoordinator()
     @State private var searchService: SearchService
     @State private var libraryStore: LibraryStore
+    @State private var auth: AuthController
 
     /// Built explicitly rather than via `.modelContainer(for:)` so the same
     /// container can be handed to `LocalMusicSource`, which needs its own context.
@@ -38,6 +39,12 @@ struct OmniMusikApp: App {
 
         _searchService = State(initialValue: SearchService(sources: sources))
         _libraryStore = State(initialValue: LibraryStore(sources: sources))
+
+        // The provider is the only Cognito-aware object in the app; everything
+        // else sees `AuthController` and the vendor-neutral types behind it.
+        _auth = State(initialValue: AuthController(
+            provider: CognitoAuthProvider(configuration: .unconfigured)
+        ))
     }
 
     var body: some Scene {
@@ -46,6 +53,7 @@ struct OmniMusikApp: App {
                 .environment(coordinator)
                 .environment(searchService)
                 .environment(libraryStore)
+                .environment(auth)
         }
         .modelContainer(container)
     }

@@ -24,7 +24,11 @@ doubling the integration work for a second streaming source that proves the same
 architectural point. The `PlaybackProvider` and `MusicSource` protocols exist so
 Spotify is an additive change, not a refactor.
 
-## Backend and web app: after iOS, not alongside
+## Backend and web app: after iOS, not alongside (SUPERSEDED 2026-09-09)
+
+> Reversed. See "Web app as control plane" below. Kept because the constraint it
+> identified — that nothing can play audio on web yet — still holds and still
+> shapes the scope.
 
 Considered building the Spring Boot backend, auth, and web client in parallel while
 MusicKit was blocked.
@@ -39,6 +43,62 @@ Auth, when it happens: **Sign in with Apple**, behind a thin interface so anothe
 provider can be added without a rewrite. It works on iOS and web, stores no
 passwords, and is the right answer for an Apple-targeted portfolio. It needs the
 same Developer Program membership as MusicKit.
+
+## Web app as control plane, not a player (supersedes the entry above)
+
+The deferral above evaluated the web app on one axis: can it play audio. It cannot,
+and that has not changed — Apple Music on web needs MusicKit JS behind the same
+blocked account, and streaming owned local files would mean uploading them, which
+is a rejected feature further down this file.
+
+What that reasoning missed is that the web app's value here is not playback. This is
+a portfolio aimed at big-tech roles, and a real backend, a real auth flow, and a real
+cloud deployment demonstrate breadth an iOS-only project cannot, whether or not sound
+comes out of the browser. Weighed on that axis the answer flips.
+
+So the web client is scoped as a **control plane**: library browsing, cross-source
+Omni playlist authoring, search, and account management. Playback stays iOS-only and
+the web UI says so plainly rather than shipping a dead transport bar. MusicKit JS
+becomes an additive playback layer once the account clears.
+
+## Auth: Cognito user pool with Sign in with Apple federated
+
+Sign in with Apple remains the intended primary button, as the superseded entry said.
+What changed is what sits underneath it.
+
+Going directly to Apple would hard-block on a Services ID and .p8 key, and this
+account is already too new for one Apple service. A Cognito user pool decouples the
+clients from that: email and password work today, Sign in with Apple federates in as
+an identity provider once configured, and neither client changes when it does. It is
+also AWS-native, which the hosting story already commits to.
+
+`AuthProvider` is the thin interface the superseded entry called for. Nothing above
+it — not `AuthController`, not the views — knows Cognito exists.
+
+**No AWS SDK on iOS.** Sign-in is a plain OAuth2 authorization-code flow with PKCE
+against the Cognito Hosted UI via `ASWebAuthenticationSession`. Amplify Swift is a
+large dependency for two HTTP calls, the hosted UI renders the Sign in with Apple
+button itself, and the React client runs the identical flow against the same pool —
+one mental model across both clients instead of two SDKs to reconcile.
+
+Signing in is optional. Local library, effects, and playback work with no account;
+an account buys cross-device playlists and the web client. Gating owned files behind
+a login would be a worse product and a worse interview answer.
+
+## Hosting: App Runner over Fargate, deliberately
+
+Chosen against a three-week budget with two clients still to build.
+
+ECS Fargate is the more conventional answer and the one an interviewer expects, but
+it means hand-wiring a VPC, ALB, target groups, and task definitions — days that do
+not buy proportional signal. Lambda was rejected outright: Spring Boot cold starts on
+Lambda are genuinely bad without GraalVM, and that build complexity costs more than
+the idle savings are worth here.
+
+The signal comes from the infrastructure being in Terraform, a container pipeline
+into ECR, and being able to explain the tradeoff — "managed runtime on purpose, here
+is when I would move to Fargate" reads as judgment. A half-finished Fargate setup
+reads as time trouble.
 
 ## Studio design: signal chain, built rather than borrowed
 
