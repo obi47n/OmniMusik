@@ -1,0 +1,757 @@
+<title>OmniMusik Interview Notes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+:root {
+  --ground: #FAF9FC;
+  --surface: #FFFFFF;
+  --raised: #F2F0F7;
+  --border: #E4E0EC;
+  --border-strong: #CFC8DE;
+  --text: #1A1820;
+  --text-2: #56515F;
+  --text-3: #857F92;
+  --accent: #6D28D9;
+  --accent-soft: #F0E9FE;
+  --ok: #15803D;
+  --warn: #B45309;
+  --blocked: #B91C1C;
+  --todo: #56515F;
+
+  --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --body: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground: #0E0E10;
+    --surface: #1C1C1F;
+    --raised: #282830;
+    --border: #33333B;
+    --border-strong: #45454F;
+    --text: #EBEBEB;
+    --text-2: #9E9E9E;
+    --text-3: #616161;
+    --accent: #B57BFF;
+    --accent-soft: #241B33;
+    --ok: #4ADE80;
+    --warn: #FBBF24;
+    --blocked: #F87171;
+    --todo: #9E9E9E;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground: #0E0E10;
+  --surface: #1C1C1F;
+  --raised: #282830;
+  --border: #33333B;
+  --border-strong: #45454F;
+  --text: #EBEBEB;
+  --text-2: #9E9E9E;
+  --text-3: #616161;
+  --accent: #B57BFF;
+  --accent-soft: #241B33;
+  --ok: #4ADE80;
+  --warn: #FBBF24;
+  --blocked: #F87171;
+  --todo: #9E9E9E;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--ground);
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 17px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 24px 120px;
+}
+
+@media (min-width: 1080px) {
+  .shell { grid-template-columns: 210px minmax(0, 1fr); gap: 56px; padding: 0 40px 140px; }
+}
+
+/* ---------- Rail ---------- */
+
+.rail { display: none; }
+
+@media (min-width: 1080px) {
+  .rail {
+    display: block;
+    position: sticky;
+    top: 0;
+    align-self: start;
+    padding-top: 108px;
+    max-height: 100vh;
+    overflow-y: auto;
+  }
+}
+
+.rail-title {
+  font-family: var(--display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 14px;
+}
+
+.rail ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+
+.rail a {
+  display: block;
+  font-family: var(--display);
+  font-size: 13.5px;
+  line-height: 1.35;
+  color: var(--text-2);
+  text-decoration: none;
+  padding: 5px 0 5px 12px;
+  border-left: 2px solid var(--border);
+}
+
+.rail a:hover { color: var(--accent); border-left-color: var(--accent); }
+.rail a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- Masthead ---------- */
+
+.masthead { padding: 84px 0 44px; border-bottom: 1px solid var(--border); }
+
+.eyebrow {
+  font-family: var(--display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 18px;
+}
+
+h1 {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: clamp(38px, 6vw, 58px);
+  line-height: 1.02;
+  letter-spacing: -0.022em;
+  margin: 0 0 20px;
+  text-wrap: balance;
+}
+
+.standfirst {
+  font-size: 20px;
+  line-height: 1.5;
+  color: var(--text-2);
+  max-width: 60ch;
+  margin: 0;
+}
+
+.standfirst em { color: var(--text); font-style: italic; }
+
+/* ---------- Sections ---------- */
+
+section { padding-top: 64px; scroll-margin-top: 24px; }
+
+h2 {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 27px;
+  letter-spacing: -0.014em;
+  line-height: 1.2;
+  margin: 0 0 8px;
+  text-wrap: balance;
+}
+
+.section-note {
+  font-family: var(--display);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-3);
+  margin: 0 0 26px;
+  letter-spacing: 0.01em;
+}
+
+h3 {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 18px;
+  letter-spacing: -0.005em;
+  margin: 34px 0 10px;
+  text-wrap: balance;
+}
+
+p { margin: 0 0 16px; max-width: 68ch; }
+section > p, section > .prose > p { color: var(--text); }
+
+.lede { color: var(--text-2); }
+
+code {
+  font-family: var(--mono);
+  font-size: 0.855em;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.1em 0.34em;
+  color: var(--text);
+  word-break: break-word;
+}
+
+strong { font-weight: 600; }
+
+a.inline { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+
+/* ---------- Pitch blocks ---------- */
+
+.pitch {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px 26px;
+  margin-bottom: 18px;
+}
+
+.pitch-label {
+  font-family: var(--display);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+
+.pitch p { margin: 0; }
+.pitch p + p { margin-top: 13px; }
+
+/* ---------- Q & A ---------- */
+
+.qa { display: flex; flex-direction: column; gap: 30px; margin-top: 8px; }
+
+.q {
+  border-left: 3px solid var(--accent);
+  padding-left: 20px;
+}
+
+.q-prompt {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 17px;
+  line-height: 1.35;
+  color: var(--text);
+  margin: 0 0 10px;
+  text-wrap: balance;
+}
+
+.q p { margin: 0 0 12px; color: var(--text-2); }
+.q p:last-child { margin-bottom: 0; }
+.q p strong { color: var(--text); }
+
+/* ---------- Signal chain ---------- */
+
+.chain-wrap { overflow-x: auto; margin: 22px 0 10px; padding-bottom: 6px; }
+
+.chain { display: flex; align-items: stretch; gap: 0; min-width: min-content; }
+
+.node {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 12px 15px;
+  min-width: 132px;
+  flex: 0 0 auto;
+}
+
+.node-name {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.node-role {
+  font-family: var(--display);
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 5px;
+  white-space: nowrap;
+}
+
+.node.is-source { border-color: var(--accent); }
+.node.is-source .node-name { color: var(--accent); }
+
+.arrow {
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 0 9px;
+  color: var(--text-3);
+  font-family: var(--mono);
+  font-size: 15px;
+}
+
+.chain-caption {
+  font-family: var(--display);
+  font-size: 12.5px;
+  color: var(--text-3);
+  margin: 4px 0 0;
+  max-width: 68ch;
+}
+
+/* ---------- Table ---------- */
+
+.table-wrap { overflow-x: auto; margin: 20px 0 8px; }
+
+table { border-collapse: collapse; width: 100%; min-width: 480px; font-size: 15.5px; }
+
+th {
+  font-family: var(--display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  text-align: left;
+  padding: 0 16px 10px 0;
+  border-bottom: 1px solid var(--border-strong);
+  white-space: nowrap;
+}
+
+td {
+  padding: 12px 16px 12px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-2);
+  vertical-align: top;
+}
+
+td:first-child { color: var(--text); font-family: var(--display); font-size: 14.5px; font-weight: 500; }
+
+/* ---------- Status ledger ---------- */
+
+.ledger { display: flex; flex-direction: column; gap: 1px; margin-top: 20px; background: var(--border); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+  background: var(--surface);
+  padding: 14px 18px;
+}
+
+@media (min-width: 640px) {
+  .row { grid-template-columns: 148px minmax(0, 1fr); gap: 18px; align-items: baseline; }
+}
+
+.status {
+  font-family: var(--display);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.status.ok { color: var(--ok); }
+.status.warn { color: var(--warn); }
+.status.blocked { color: var(--blocked); }
+.status.todo { color: var(--todo); }
+
+.row-body { font-size: 15.5px; line-height: 1.5; color: var(--text-2); }
+.row-body strong { color: var(--text); font-weight: 600; }
+
+/* ---------- Callout ---------- */
+
+.callout {
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 12px 12px 0;
+  padding: 18px 22px;
+  margin: 24px 0;
+}
+
+.callout p { margin: 0; color: var(--text); font-size: 16px; }
+.callout p + p { margin-top: 10px; }
+
+.callout-label {
+  font-family: var(--display);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+
+/* ---------- Rapid fire ---------- */
+
+.rapid { display: flex; flex-direction: column; gap: 0; margin-top: 18px; border-top: 1px solid var(--border); }
+
+.rapid-item { padding: 16px 0; border-bottom: 1px solid var(--border); }
+
+.rapid-q {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 15.5px;
+  color: var(--text);
+  margin: 0 0 6px;
+}
+
+.rapid-a { margin: 0; font-size: 16px; color: var(--text-2); }
+
+footer {
+  margin-top: 76px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  font-family: var(--display);
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+footer p { max-width: 68ch; margin: 0 0 6px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+
+<div class="shell">
+
+<nav class="rail" aria-label="Sections">
+  <div class="rail-title">Contents</div>
+  <ol>
+    <li><a href="#pitch">The pitch</a></li>
+    <li><a href="#hard">Why it is hard</a></li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#engine">The audio engine</a></li>
+    <li><a href="#concurrency">Concurrency</a></li>
+    <li><a href="#bugs">Two war stories</a></li>
+    <li><a href="#defend">Decisions to defend</a></li>
+    <li><a href="#limits">Honest limitations</a></li>
+    <li><a href="#status">What is actually built</a></li>
+    <li><a href="#rapid">Rapid fire</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<header class="masthead">
+  <div class="eyebrow">Interview preparation &middot; OmniMusik</div>
+  <h1>OmniMusik Interview Notes</h1>
+  <p class="standfirst">An iOS app that unifies Apple Music and locally owned audio into one library, queue, and search, with a real&#8209;time effects chain for local files. This document is for studying before an interview &mdash; the arguments, the tradeoffs, and <em>an honest account of what is finished</em>.</p>
+</header>
+
+<section id="pitch">
+  <h2>The pitch</h2>
+  <p class="section-note">Two lengths. Learn the short one verbatim; let the long one breathe.</p>
+
+  <div class="pitch">
+    <div class="pitch-label">Thirty seconds</div>
+    <p>OmniMusik is an iOS music client that puts streaming and owned audio into a single library, queue, and search. The interesting part is that those two things are not variations on one playback system &mdash; they are two incompatible ones. Apple Music plays through a system&#8209;owned player with no sample access; local files run through an <code>AVAudioEngine</code> graph I control frame by frame. The whole architecture is about hiding that split from the UI without pretending it does not exist.</p>
+  </div>
+
+  <div class="pitch">
+    <div class="pitch-label">Ninety seconds</div>
+    <p>I wanted a project where the hard problem was architectural rather than visual. Unifying two playback systems is that, because the incompatibility is structural &mdash; Apple Music audio is DRM&#8209;protected, so effects on it are not unimplemented, they are impossible.</p>
+    <p>So there are two protocols, deliberately kept apart. <code>PlaybackProvider</code> answers &ldquo;how is this track played.&rdquo; <code>MusicSource</code> answers &ldquo;where do tracks come from.&rdquo; They do not map one&#8209;to&#8209;one, and collapsing them into one interface is the mistake the design exists to avoid.</p>
+    <p>The local path is where the real audio work lives: a four&#8209;node effects graph with non&#8209;destructive edits that persist per track, seeking implemented as stop&#8209;and&#8209;reschedule, and positions reported relative to the trimmed region so the UI never sees the file&rsquo;s absolute timeline.</p>
+  </div>
+</section>
+
+<section id="hard">
+  <h2>Why it is hard</h2>
+  <p class="section-note">The one table worth memorising. It is the whole thesis.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>&nbsp;</th><th>Apple Music</th><th>Local file</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Player</td><td><code>ApplicationMusicPlayer</code>, system&#8209;owned</td><td><code>AVAudioEngine</code>, mine</td></tr>
+        <tr><td>Sample access</td><td>None &mdash; DRM protected</td><td>Complete</td></tr>
+        <tr><td>Effects</td><td>Structurally impossible</td><td>Real&#8209;time DSP</td></tr>
+        <tr><td>Clock</td><td>Opaque, not shared</td><td>Frame&#8209;accurate</td></tr>
+        <tr><td>Seek and queue</td><td>Delegated to the system</td><td>Direct</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>The rule that they are two systems is encoded in the domain, not in a comment: <code>TrackSource.supportsAudioEffects</code> returns <code>false</code> for Apple Music. One place holds the constraint, and the Studio reads it rather than re&#8209;deriving it.</p>
+
+  <div class="callout">
+    <div class="callout-label">If they push on this</div>
+    <p>The follow&#8209;up is usually &ldquo;could you not just tap the output?&rdquo; No. The protected audio never enters a process&#8209;visible buffer; the system mixes it. Attempting to capture it is a DRM circumvention, not an engineering problem. Saying so plainly is a better answer than speculating about workarounds.</p>
+  </div>
+</section>
+
+<section id="architecture">
+  <h2>Architecture</h2>
+  <p class="section-note">Two protocols, one coordinator, and a domain layer with no framework imports.</p>
+
+  <h3>The two protocols, and why they stay apart</h3>
+  <p><strong><code>PlaybackProvider</code></strong> &mdash; how a track is played. <code>LocalPlaybackProvider</code> wraps <code>AVAudioEngine</code>. An Apple Music provider will wrap <code>ApplicationMusicPlayer</code>.</p>
+  <p><strong><code>MusicSource</code></strong> &mdash; where tracks come from. <code>LocalMusicSource</code> reads SwiftData; <code>AppleMusicSource</code> will query the catalog and the user&rsquo;s library.</p>
+  <p>They are separate because they do not line up. A source can be browsable while playback is unavailable &mdash; a lapsed subscription still lets you see the catalog. A provider can play tracks a source no longer lists. Merging them would force every one of those states into a single interface that lies about at least one of them.</p>
+
+  <h3>The signal chain</h3>
+  <p>The Studio&rsquo;s layout mirrors this node order deliberately, so the interface is a picture of the architecture rather than an arbitrary arrangement of sliders.</p>
+
+  <div class="chain-wrap">
+    <div class="chain">
+      <div class="node is-source"><div class="node-name">playerNode</div><div class="node-role">scheduled segment</div></div>
+      <div class="arrow" aria-hidden="true">&rarr;</div>
+      <div class="node"><div class="node-name">timePitch</div><div class="node-role">speed, pitch</div></div>
+      <div class="arrow" aria-hidden="true">&rarr;</div>
+      <div class="node"><div class="node-name">eqNode</div><div class="node-role">3&#8209;band EQ</div></div>
+      <div class="arrow" aria-hidden="true">&rarr;</div>
+      <div class="node"><div class="node-name">reverb</div><div class="node-role">wet/dry mix</div></div>
+      <div class="arrow" aria-hidden="true">&rarr;</div>
+      <div class="node"><div class="node-name">mainMixer</div><div class="node-role">output</div></div>
+    </div>
+  </div>
+  <p class="chain-caption">The graph is reconnected per file rather than once at startup: sample rate and channel count vary between imports, and a graph wired for 44.1&nbsp;kHz stereo misbehaves silently on a 48&nbsp;kHz mono file.</p>
+
+  <h3>Module map</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Module</th><th>Holds</th></tr></thead>
+      <tbody>
+        <tr><td>Domain</td><td><code>Track</code>, <code>TrackSource</code>, <code>AudioEdit</code>. No framework imports at all &mdash; no AVFoundation, no SwiftData, no MusicKit. Portable and trivially testable.</td></tr>
+        <tr><td>Playback</td><td><code>PlaybackProvider</code> and its implementations, <code>PlaybackCoordinator</code> which owns the queue and routes on <code>track.source</code>, <code>NowPlayingCenter</code>, <code>AudioSessionObserver</code>.</td></tr>
+        <tr><td>Library</td><td><code>MusicSource</code> and implementations, SwiftData persistence, file&#8209;owning storage, import, <code>LibraryStore</code>.</td></tr>
+        <tr><td>Search</td><td><code>SearchService</code> &mdash; concurrent fan&#8209;out across sources.</td></tr>
+        <tr><td>Studio</td><td>Effects UI, waveform analysis and rendering.</td></tr>
+        <tr><td>Auth</td><td><code>AuthProvider</code> interface, Cognito implementation, Keychain token store.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>The asymmetry worth defending</h3>
+  <p>Local tracks come from SwiftData&rsquo;s <code>@Query</code>, which keeps the list live as imports and deletions happen. Remote sources are fetched into <code>LibraryStore</code> on demand. So the unified library is a merge of <strong>one reactive source and N fetched ones</strong>.</p>
+  <p>That looks like an inconsistency and interviewers will probe it. The answer: routing local tracks through the same manual refresh would trade real reactivity for a uniformity that helps only the code, not the person using the app. The asymmetry is the honest shape of the problem.</p>
+</section>
+
+<section id="engine">
+  <h2>The audio engine</h2>
+  <p class="section-note">Five problems in <code>LocalPlaybackProvider</code>. This is the densest technical material in the project &mdash; know it cold.</p>
+
+  <div class="qa">
+
+    <div class="q">
+      <p class="q-prompt">How is seeking implemented, and what broke?</p>
+      <p><code>AVAudioPlayerNode</code> cannot seek. Seeking is <strong>stop and reschedule</strong>: stop the node, schedule a new segment from the target frame, resume if it was playing.</p>
+      <p>The trap is that <code>scheduleSegment</code>&rsquo;s completion handler <strong>also fires when playback is cancelled</strong>, not only at natural end. So <code>stop()</code> during a seek fires the completion, the coordinator reads it as end&#8209;of&#8209;track, and playback skips to the next song mid&#8209;scrub.</p>
+      <p>The fix is a <strong>generation counter</strong>. An integer increments before every stop or reschedule; each completion closure captures the generation that was current when it was scheduled and returns early unless it still matches. Stale callbacks become no&#8209;ops.</p>
+    </div>
+
+    <div class="q">
+      <p class="q-prompt">Why are positions trim-relative?</p>
+      <p>A track trimmed to start at 0:30 reports <code>0:00</code> at its first audible sample. <code>duration</code> is the audible length, so the scrubber&rsquo;s range is always <code>0...duration</code>.</p>
+      <p>The alternative &mdash; exposing absolute file time and asking every view to subtract the trim offset &mdash; puts the same correction in the scrubber, the mini player, the lock screen, and the Now Playing view, where it will eventually be wrong in one of them. Converting once at the boundary means the UI never learns the file has an absolute timeline.</p>
+    </div>
+
+    <div class="q">
+      <p class="q-prompt">Position under a changed playback rate &mdash; what does it actually count?</p>
+      <p><code>playerTime.sampleTime</code> counts <strong>source frames rendered</strong>, so at <code>rate&nbsp;=&nbsp;2.0</code> it advances at twice wall&#8209;clock speed. That is exactly right for a scrubber, which shows position <em>within the file</em>, and it stays correct across rate changes with no special casing.</p>
+      <p>If wall&#8209;clock time remaining were ever displayed, it would be <code>(duration&nbsp;&minus;&nbsp;currentTime)&nbsp;/&nbsp;rate</code>. Knowing which of the two a number represents is the whole point.</p>
+    </div>
+
+    <div class="q">
+      <p class="q-prompt">Why are effects split into two kinds?</p>
+      <p><strong>Parametric</strong> &mdash; speed, pitch, reverb, EQ &mdash; mutate live nodes and take effect on the next render cycle. That is what makes dragging a slider feel immediate.</p>
+      <p><strong>Structural</strong> &mdash; trim &mdash; changes <em>what is scheduled</em>, so it requires tearing down and rebuilding the schedule. Rescheduling on every slider tick would stutter, so a trim change reschedules <strong>only when the bounds actually moved</strong>, and re&#8209;anchors the old absolute position inside the new bounds so adjusting the end handle does not yank playback back to the start.</p>
+      <p>This is the cleanest example in the codebase of a distinction that is invisible in the UI but drives the implementation.</p>
+    </div>
+
+    <div class="q">
+      <p class="q-prompt">Why reactivate the audio session on every play, not just on load?</p>
+      <p>An interruption &mdash; a phone call, Siri &mdash; deactivates the session on its way out, and <strong>iOS does not hand it back automatically</strong>. Resuming afterwards would start the engine against a dead session and produce silence with no error thrown, which is the worst kind of bug: no crash, no log, just nothing.</p>
+      <p>So <code>activateSession()</code> runs on every <code>play()</code>. It is cheap, and it removes an entire class of silent failure.</p>
+    </div>
+
+  </div>
+
+  <h3>Lock screen: publish on transitions, never on a timer</h3>
+  <p><code>MPNowPlayingInfoCenter</code> is <strong>not polled</strong>. You publish an elapsed time and a playback rate, and the system extrapolates position from there. So it is updated on state transitions &mdash; play, pause, seek, track change &mdash; and never on the position timer. Republishing several times a second is pure overhead and can make the lock screen scrubber stutter.</p>
+  <p>The consequence people miss: the Studio&rsquo;s speed setting <strong>must</strong> feed the published rate. If it does not, the lock screen extrapolates at 1.0&times; while the audio plays at 1.5&times;, and the two drift apart visibly within a minute.</p>
+</section>
+
+<section id="concurrency">
+  <h2>Concurrency</h2>
+  <p class="section-note">The search fan-out is the best structured-concurrency answer in the project.</p>
+
+  <p>One query goes to every source at once via <code>withTaskGroup</code>. Three properties have to hold, none of which come for free:</p>
+
+  <div class="qa">
+    <div class="q">
+      <p class="q-prompt">Failure isolation</p>
+      <p>Apple Music being down, unauthorized, or slow must not cost you your local results. Each source&rsquo;s outcome is captured independently and a thrown error becomes a <strong>per&#8209;source note in the results</strong>, never a failed search. A partial result is still a useful result, so it is surfaced as a footnote rather than an error dialog.</p>
+    </div>
+
+    <div class="q">
+      <p class="q-prompt">Cancellation, and the race it prevents</p>
+      <p>Each new query cancels the one in flight. Critically, the cancellation check happens <strong>after</strong> results are gathered as well as before &mdash; otherwise a slow earlier query can finish last and overwrite the results of a faster later one. Typing a word and seeing results for its first three letters is exactly this bug.</p>
+    </div>
+
+    <div class="q">
+      <p class="q-prompt">Debouncing</p>
+      <p>A 250&nbsp;ms sleep inside the task before dispatch, so a network source is not hit on every keystroke. Because it is inside the cancellable task, an abandoned query never reaches the network at all.</p>
+    </div>
+  </div>
+
+  <h3>Why results are grouped by source, never interleaved</h3>
+  <p>There is <strong>no common relevance scale</strong> between a filename substring match and Apple&rsquo;s catalog ranking. Interleaving them would require inventing a comparison that does not exist and presenting it as if it meant something. Grouping is the honest presentation.</p>
+  <p>Sections are ordered by the canonical <code>TrackSource</code> order rather than by whichever source answered first, so results do not reshuffle between searches.</p>
+</section>
+
+<section id="bugs">
+  <h2>Two war stories</h2>
+  <p class="section-note">For &ldquo;tell me about a difficult bug.&rdquo; Both are real, and both have a clean diagnostic arc.</p>
+
+  <h3>1. Playback died the instant the phone locked</h3>
+  <p><strong>Symptom.</strong> Audio stopped the moment the screen locked. But the lock screen itself populated correctly &mdash; artwork, title, working transport controls. That combination is what made it hard: it proved <code>NowPlayingCenter</code> was working, which pointed away from the real cause.</p>
+  <p><strong>What looked right.</strong> <code>INFOPLIST_KEY_UIBackgroundModes = audio</code> was present in both the Debug and Release configs of the app target, and it resolved correctly in <code>xcodebuild -showBuildSettings</code>. Everything on the input side checked out.</p>
+  <p><strong>Root cause.</strong> The built <code>Info.plist</code> did not contain the key at all. Xcode&rsquo;s generated&#8209;plist mechanism honours only a <strong>fixed whitelist</strong> of <code>INFOPLIST_KEY_*</code> settings, and <code>UIBackgroundModes</code> is not on it. The setting was inert: correct in the project file, resolving in build settings, and silently dropped on the way into the bundle. The app shipped with no audio background mode, so iOS suspended it on lock &mdash; exactly the observed behaviour.</p>
+  <p><strong>Fix.</strong> Supply the key from an explicit partial <code>Info.plist</code>, placed outside the synchronized folder so Xcode does not treat it as a bundle resource, with <code>GENERATE_INFOPLIST_FILE</code> left on so every other generated key still merges in on top.</p>
+  <div class="callout">
+    <div class="callout-label">The transferable lesson</div>
+    <p>The earlier debugging kept verifying the <em>input</em> and finding it correct. The bug only became visible by checking the <em>output</em> &mdash; the artifact that actually ships. When a toolchain silently discards valid&#8209;looking configuration, no amount of re&#8209;reading the source will show it.</p>
+  </div>
+
+  <h3>2. Seeking skipped to the next track</h3>
+  <p>Covered in detail above. The short version for a verbal answer: a completion handler that fires on cancellation as well as completion, mistaken for an end&#8209;of&#8209;track signal, fixed with a generation counter that invalidates in&#8209;flight callbacks. It is a good story because the API&rsquo;s contract is genuinely surprising and the fix is three lines and a clear invariant.</p>
+</section>
+
+<section id="defend">
+  <h2>Decisions to defend</h2>
+  <p class="section-note">Each of these was chosen against a real alternative. Knowing what was rejected, and why, is what separates a decision from a default.</p>
+
+  <div class="qa">
+    <div class="q">
+      <p class="q-prompt">Why native Swift rather than React Native?</p>
+      <p>Apple Music has no playback SDK on Android, so cross&#8209;platform was never going to deliver real Apple Music playback there. React Native would also have meant bridging AVFoundation through native modules for the entire effects chain &mdash; the most interesting part of the project &mdash; so the &ldquo;shared codebase&rdquo; benefit evaporates precisely where the work is.</p>
+    </div>
+
+    <div class="q">
+      <p class="q-prompt">Why is imported audio copied rather than referenced?</p>
+      <p>Security&#8209;scoped URLs from the document picker do not survive the callback. Storing the URL and reading it later fails once the scope lapses, so files are copied into app&#8209;owned storage at import.</p>
+    </div>
+
+    <div class="q">
+      <p class="q-prompt">Why no AWS SDK for authentication?</p>
+      <p>Sign&#8209;in is a plain OAuth2 authorization&#8209;code flow with PKCE against the Cognito Hosted UI via <code>ASWebAuthenticationSession</code>. Amplify Swift is a large dependency for what amounts to two HTTP calls; the hosted UI renders the Sign in with Apple button itself; and the web client will run the identical flow against the same user pool, so there is one mental model rather than two SDKs to reconcile.</p>
+      <p>PKCE is not optional here. A native binary cannot keep a client secret, so the app client is public and PKCE is what stops an intercepted authorization code from being redeemable.</p>
+    </div>
+
+    <div class="q">
+      <p class="q-prompt">Why Cognito rather than going straight to Sign in with Apple?</p>
+      <p>Sign in with Apple stays the intended primary button. Cognito sits underneath it so the clients are decoupled from Apple service availability: email and password work today, Sign in with Apple federates in once configured, and neither client changes when it does.</p>
+    </div>
+
+    <div class="q">
+      <p class="q-prompt">Why is signing in optional?</p>
+      <p>The local library, the effects chain, and playback all work with no account. An owned MP3 does not need a server&rsquo;s permission to play. An account buys cross&#8209;device playlists and the web client; nothing else is withheld. Gating owned files behind a login would be a worse product and a worse answer.</p>
+    </div>
+
+    <div class="q">
+      <p class="q-prompt">Features deliberately rejected</p>
+      <p><strong>Stems / source separation</strong> &mdash; a machine&#8209;learning project wearing a tab. <strong>BPM and key detection</strong> &mdash; would require real analysis, and showing invented values is worse than showing nothing. <strong>Uploading local audio to a server</strong> &mdash; turns a music tool into a file&#8209;hosting service with the storage bill and licensing questions that implies. <strong>Spotify</strong> &mdash; deferred, not rejected: its SDK needs a custom dev client and its own OAuth flow to prove the same architectural point the protocols already prove.</p>
+    </div>
+  </div>
+</section>
+
+<section id="limits">
+  <h2>Honest limitations</h2>
+  <p class="section-note">Prepared answers for &ldquo;what would you do differently.&rdquo; Volunteering these reads as judgment; being caught out by them does not.</p>
+
+  <h3>There are no tests yet</h3>
+  <p>The test targets contain Xcode&rsquo;s boilerplate and nothing else. The honest answer is that this was a deliberate sequencing call under a fixed deadline, not an oversight &mdash; and that the first suite to write is the playlist merge and conflict&#8209;resolution logic, because that is the code where a bug is both likely and invisible. Do not claim coverage that does not exist.</p>
+
+  <h3>Effects will never work on Apple Music</h3>
+  <p>Worth stating before being asked. It is a structural property of DRM&#8209;protected playback, not a roadmap item, and the domain model encodes it rather than leaving it as a comment.</p>
+
+  <h3>Some subsystems compile but have not been exercised</h3>
+  <p>A large amount of the app was written without a compiler available and has been verified only to the extent that it builds cleanly. Building is not running. Be precise about which parts have been used on a device and which have not &mdash; the status ledger below is the source of truth.</p>
+
+  <h3>Single-device by design, so far</h3>
+  <p>Everything persists locally through SwiftData. Nothing syncs until the backend exists, so &ldquo;how do you handle conflicts&rdquo; is currently a design answer rather than an implemented one. Say so.</p>
+</section>
+
+<section id="status">
+  <h2>What is actually built</h2>
+  <p class="section-note">Read this before every interview. Overclaiming here is the single easiest way to lose credibility, and the recovery is worse than the admission.</p>
+
+  <div class="ledger">
+    <div class="row"><div class="status ok">Working on device</div><div class="row-body"><strong>Local import and library.</strong> MP3 import, metadata and artwork extraction, SwiftData persistence, file&#8209;owning storage.</div></div>
+    <div class="row"><div class="status ok">Working on device</div><div class="row-body"><strong>AVAudioEngine playback.</strong> Play, pause, seek, next, previous, auto&#8209;advance, delete.</div></div>
+    <div class="row"><div class="status ok">Working on device</div><div class="row-body"><strong>Studio effects.</strong> Speed, pitch, reverb, 3&#8209;band EQ, trim &mdash; non&#8209;destructive, applied at render time, persisted per track.</div></div>
+    <div class="row"><div class="status warn">Builds, not yet run</div><div class="row-body"><strong>Studio redesign, waveform analysis and rendering, unified library with source filtering, universal search fan&#8209;out.</strong> Compiles clean for simulator and device with no warnings. Runtime behaviour is unverified.</div></div>
+    <div class="row"><div class="status warn">Fixed, needs device check</div><div class="row-body"><strong>Background audio on lock.</strong> The built <code>Info.plist</code> now carries <code>UIBackgroundModes</code> as an array containing <code>audio</code>, confirmed in both simulator and device builds. Confirming the audio actually keeps playing is a device test.</div></div>
+    <div class="row"><div class="status warn">Scaffolded only</div><div class="row-body"><strong>Authentication.</strong> The interface, Cognito implementation, Keychain store, and account screen exist and compile. No user pool has been created yet, so nothing has ever signed in. The configuration ships as placeholders and the UI says so.</div></div>
+    <div class="row"><div class="status blocked">Blocked externally</div><div class="row-body"><strong>MusicKit / Apple Music.</strong> The developer account is too new for the App Service to be enabled. <code>AppleMusicSource</code> is a deliberate stub reporting &ldquo;not connected&rdquo;; the provider slot exists and returns nothing. This is worth mentioning unprompted &mdash; it explains the stub better than the stub does.</div></div>
+    <div class="row"><div class="status todo">Planned</div><div class="row-body"><strong>Cross&#8209;source playlists, queue view, Spring Boot backend, React control plane, AWS deployment, offline render export, tests, demo materials.</strong> Designed, not written.</div></div>
+  </div>
+
+  <div class="callout">
+    <div class="callout-label">Phrasing that holds up</div>
+    <p>&ldquo;The local playback path and the effects chain are working on device. The search and unified&#8209;library layer compiles and is architecturally complete but I have not finished runtime&#8209;verifying it. Apple Music is blocked on account provisioning, so that source is a stub.&rdquo;</p>
+    <p>That sentence is more impressive than a claim of completeness, because it demonstrates you track the difference.</p>
+  </div>
+</section>
+
+<section id="rapid">
+  <h2>Rapid fire</h2>
+  <p class="section-note">Short answers to the questions that come up in the last five minutes.</p>
+
+  <div class="rapid">
+    <div class="rapid-item">
+      <p class="rapid-q">Why <code>@Observable</code> rather than <code>ObservableObject</code>?</p>
+      <p class="rapid-a">Finer&#8209;grained invalidation &mdash; views depend on the properties they actually read rather than on every published change &mdash; and less ceremony. It is the current recommendation and the deployment target allows it.</p>
+    </div>
+    <div class="rapid-item">
+      <p class="rapid-q">Why is everything <code>@MainActor</code> in the playback layer?</p>
+      <p class="rapid-a">Providers drive observable UI state. The cost of hopping actors for transport controls is irrelevant next to having exactly one place where playback state can be mutated. The audio rendering itself is not on the main thread &mdash; that happens on the engine&rsquo;s own render threads.</p>
+    </div>
+    <div class="rapid-item">
+      <p class="rapid-q">How are edits stored without touching the audio?</p>
+      <p class="rapid-a"><code>AudioEdit</code> is a value type persisted per track and applied at render time. The source file is never modified, so every edit is reversible and export renders a new file rather than mutating the original.</p>
+    </div>
+    <div class="rapid-item">
+      <p class="rapid-q">Where does the queue live?</p>
+      <p class="rapid-a"><code>PlaybackCoordinator</code>, which also carries the per&#8209;track edits for the queue and routes each track to a provider by its source. Providers stay ignorant of what plays next.</p>
+    </div>
+    <div class="rapid-item">
+      <p class="rapid-q">What happens at a track boundary between two sources?</p>
+      <p class="rapid-a">The coordinator stops the outgoing provider and loads the incoming one. It is the reason <code>onTrackFinished</code> must not fire for coordinator&#8209;initiated stops &mdash; otherwise advancing the queue races with the handoff already in flight.</p>
+    </div>
+    <div class="rapid-item">
+      <p class="rapid-q">Why does the domain layer import nothing?</p>
+      <p class="rapid-a">So it stays portable and testable, and so the eventual web client can share the model conceptually even though it shares no code. It is also what keeps framework assumptions from leaking into the types every layer touches.</p>
+    </div>
+    <div class="rapid-item">
+      <p class="rapid-q">Why App Runner rather than ECS Fargate?</p>
+      <p class="rapid-a">A deliberate call against a fixed deadline. Fargate means hand&#8209;wiring a VPC, load balancer, target groups, and task definitions &mdash; days that do not buy proportional signal on a portfolio project. The infrastructure is still defined in Terraform with a container pipeline. Being able to say when you would move to Fargate is the part that matters.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>Living document &mdash; updated as the project is built. Source: <code>docs/interview-notes.html</code>.</p>
+  <p>Status claims reflect the repository at the time of writing. Re&#8209;read the ledger before relying on it.</p>
+</footer>
+
+</main>
+</div>

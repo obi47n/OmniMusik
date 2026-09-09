@@ -92,6 +92,19 @@ Sign in with Apple is the chosen auth, behind a thin interface.
 
 None known.
 
+## Interview notes
+
+`docs/interview-notes.html` is a living study document for interview preparation:
+the pitch, the architecture arguments and their rejected alternatives, audio-engine
+deep dives, debugging war stories, and a status ledger separating what runs on
+device from what merely compiles.
+
+Published at https://claude.ai/code/artifact/f4b69ae6-fc9c-477a-b3d9-92eb0f566fa4
+
+Keep it current as the project changes. The status ledger is the part that matters
+most and the part that goes stale fastest -- it exists so nothing gets overclaimed
+in an interview, which only works if it is true.
+
 ## Notes
 
 `_to_delete/` holds discards from a sandbox that could not delete files, including a
