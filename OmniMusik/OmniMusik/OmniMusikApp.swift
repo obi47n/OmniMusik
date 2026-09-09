@@ -101,6 +101,7 @@ struct OmniMusikApp: App {
                     await provider.connectIfPossible()
                 }
                 .onChange(of: scenePhase) { _, phase in
+                    HandoffLog.note("scenePhase -> \(phase)")
                     guard phase == .active else {
                         // Backgrounding means the switch happened and the transition
                         // has served its purpose. Clearing it here rather than on a

@@ -82,6 +82,8 @@ struct NowPlayingView: View {
                 }
             }
             .sheet(isPresented: $showingQueue) { QueueView() }
+            // This sheet covers the root's overlay, so it needs its own.
+            .spotifyHandoffOverlay(host: "nowPlaying")
             .sheet(item: $addToPlaylistTarget) { track in
                 AddToPlaylistView(track: track)
             }

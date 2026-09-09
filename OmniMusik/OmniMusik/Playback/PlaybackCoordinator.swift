@@ -48,7 +48,10 @@ final class PlaybackCoordinator {
     /// screen. Drives the handoff transition.
     private(set) var isHandingOffToSpotify = false
 
-    func endHandoffTransition() { isHandingOffToSpotify = false }
+    func endHandoffTransition() {
+        if isHandingOffToSpotify { HandoffLog.note("coordinator: isHandingOffToSpotify -> false") }
+        isHandingOffToSpotify = false
+    }
     private var activeProvider: (any PlaybackProvider)?
 
     /// Saved edits for the tracks in the queue.
@@ -86,6 +89,7 @@ final class PlaybackCoordinator {
     /// reaching for a source: routing stays a lookup, and a provider that cannot work
     /// is simply absent rather than present-and-failing.
     func attachSpotifyProvider(_ provider: SpotifyPlaybackProvider?) {
+        HandoffLog.note("attachSpotifyProvider(\(provider == nil ? "nil" : "provider"))")
         spotifyProvider?.onTrackFinished = nil
         // Replacing the provider is the one place the old connection is genuinely
         // finished with, so it is released rather than left dangling.
@@ -95,6 +99,7 @@ final class PlaybackCoordinator {
             self?.advanceAfterCompletion()
         }
         provider?.onWillWakeSpotify = { [weak self] in
+            HandoffLog.note("coordinator: isHandingOffToSpotify -> true (was \(self?.isHandingOffToSpotify ?? false))")
             self?.isHandingOffToSpotify = true
         }
     }

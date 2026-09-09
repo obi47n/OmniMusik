@@ -155,6 +155,7 @@ final class SpotifyPlaybackProvider: NSObject, PlaybackProvider {
 
     func play() async throws {
         guard let uri = currentURI else { return }
+        HandoffLog.note("play() entered; isConnected=\(appRemote.isConnected); spotifyInstalled=\(Self.isSpotifyInstalled)")
 
         // Attach a fresh token every time. Spotify's tokens expire on the hour and a
         // stale one fails the connection with an error that reads like the app is
@@ -164,10 +165,12 @@ final class SpotifyPlaybackProvider: NSObject, PlaybackProvider {
         // Try the quiet path first: if Spotify is running at all, this connects
         // without a foreground switch and playback is driven entirely from here.
         if !appRemote.isConnected {
-            await connectIfPossible()
+            let ok = await connectIfPossible()
+            HandoffLog.note("connectIfPossible returned \(ok); isConnected now \(appRemote.isConnected)")
         }
 
         if appRemote.isConnected {
+            HandoffLog.note("quiet path: playing in place")
             appRemote.playerAPI?.play(uri, callback: nil)
             playing = true
             lastReportedAt = Date()
@@ -185,6 +188,7 @@ final class SpotifyPlaybackProvider: NSObject, PlaybackProvider {
             // iOS is about to take the screen away; without this the switch arrives
             // with no explanation and reads as a glitch. The delay costs nothing
             // against the app launch that follows it.
+            HandoffLog.note("wake path: firing onWillWakeSpotify (handler set: \(onWillWakeSpotify != nil))")
             onWillWakeSpotify?()
 
             // Long enough for the transition to render and be read. It was 520ms,
@@ -194,7 +198,9 @@ final class SpotifyPlaybackProvider: NSObject, PlaybackProvider {
             // launching Spotify anyway.
             try? await Task.sleep(for: .milliseconds(1100))
 
+            HandoffLog.note("wake path: sleep done, calling authorizeAndPlayURI")
             let started = await appRemote.authorizeAndPlayURI(uri)
+            HandoffLog.note("authorizeAndPlayURI returned \(started)")
             if !started {
                 pendingPlayURI = nil
                 throw PlaybackError.engineFailure(
@@ -259,6 +265,7 @@ extension SpotifyPlaybackProvider: SPTAppRemoteDelegate {
 
     nonisolated func appRemoteDidEstablishConnection(_ appRemote: SPTAppRemote) {
         MainActor.assumeIsolated {
+            HandoffLog.note("delegate: connection established")
             appRemote.playerAPI?.delegate = self
             appRemote.playerAPI?.subscribe(toPlayerState: nil)
             settleConnectionWaiters(true)
@@ -275,6 +282,7 @@ extension SpotifyPlaybackProvider: SPTAppRemoteDelegate {
 
     nonisolated func appRemote(_ appRemote: SPTAppRemote, didFailConnectionAttemptWithError error: Error?) {
         MainActor.assumeIsolated {
+            HandoffLog.note("delegate: connection attempt failed: \(error?.localizedDescription ?? "nil")")
             pendingPlayURI = nil
             playing = false
             lastReportedAt = nil
@@ -284,6 +292,7 @@ extension SpotifyPlaybackProvider: SPTAppRemoteDelegate {
 
     nonisolated func appRemote(_ appRemote: SPTAppRemote, didDisconnectWithError error: Error?) {
         MainActor.assumeIsolated {
+            HandoffLog.note("delegate: disconnected: \(error?.localizedDescription ?? "no reason given")")
             playing = false
             lastReportedAt = nil
             settleConnectionWaiters(false)

@@ -24,6 +24,9 @@
 import SwiftUI
 
 struct HandoffView: View {
+    /// Which surface presented this instance. Diagnostic only.
+    var host: String = "root"
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var moved = false
 
@@ -48,6 +51,7 @@ struct HandoffView: View {
             }
             .padding(32)
         }
+        .onAppear { HandoffLog.note("HandoffView appeared on screen (host: \(host))") }
         .task {
             guard !reduceMotion else { moved = true; return }
             withAnimation(.smooth(duration: 0.34)) { moved = true }
@@ -96,5 +100,44 @@ struct HandoffView: View {
             .scaleEffect(moved ? 1 : 0.66)
             .opacity(moved ? 1 : 0)
             .animation(reduceMotion ? nil : .smooth(duration: 0.36).delay(0.1), value: moved)
+    }
+}
+
+
+// MARK: - Presenting it above whatever is on screen
+
+/// Shows the handoff transition over the modified view.
+///
+/// Applied to more than one surface on purpose. A `.overlay` on the root tab view is
+/// hidden behind any sheet presented from it -- and Now Playing is a sheet, which is
+/// exactly where the skip buttons live. The transition was rendering correctly the
+/// whole time, on the tab view, underneath the screen the person was looking at. The
+/// on-device log proved it appeared; this is what makes it visible.
+struct SpotifyHandoffOverlay: ViewModifier {
+    let host: String
+    @Environment(PlaybackCoordinator.self) private var coordinator
+
+    func body(content: Content) -> some View {
+        content
+            .overlay {
+                if coordinator.isHandingOffToSpotify {
+                    HandoffView(host: host)
+                        .transition(.opacity)
+                        .task {
+                            // Backstop only: the normal exit is backgrounding, handled
+                            // in OmniMusikApp. This covers a wake that fails and never
+                            // switches, which would otherwise strand the overlay.
+                            try? await Task.sleep(for: .seconds(4))
+                            coordinator.endHandoffTransition()
+                        }
+                }
+            }
+            .animation(.smooth(duration: 0.25), value: coordinator.isHandingOffToSpotify)
+    }
+}
+
+extension View {
+    func spotifyHandoffOverlay(host: String) -> some View {
+        modifier(SpotifyHandoffOverlay(host: host))
     }
 }
