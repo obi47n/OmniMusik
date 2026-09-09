@@ -73,21 +73,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_16.app
+      # The runner's default Xcode, on purpose. Selecting /Applications/Xcode_16.app
+      # looked safer and was the whole problem: on the macos-15 image only the default
+      # Xcode has an iOS simulator runtime installed, and the alternate versions ship
+      # with none -- "Unable to find a device" with an empty list of simulators, in
+      # under a minute, before building anything. The deployment target pins the
+      # minimum iOS; any simulator at or above it will do.
+      #
+      # The device is chosen from what is actually installed rather than named, for
+      # the same reason: image updates rename the current iPhone, and a pinned name
+      # is a failure waiting for the next runner refresh.
+      - name: Pick a simulator
+        id: sim
+        run: |
+          NAME=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          runtimes = json.load(sys.stdin)["devices"]
+          ios = sorted(k for k in runtimes if "iOS" in k)
+          for key in reversed(ios):
+              phones = [d["name"] for d in runtimes[key] if d["name"].startswith("iPhone")]
+              if phones:
+                  print(phones[0]); break
+          ')
+          echo "Using: $NAME"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
 
       # The shared scheme disables parallel testing on purpose; see CLAUDE.md.
-      #
-      # No OS pin on the destination. The runner image ships whichever iOS runtime
-      # is current, and pinning 18.0 failed the moment it stopped being that: "iOS
-      # 18.0 is not installed", sixty seconds in, before building anything. The
-      # deployment target is what the project pins; the simulator just has to be
-      # at or above it. No xcpretty either -- it is a gem the image may not carry,
-      # and a formatter that is missing turns a green run red for nothing.
       - name: Test
         run: |
           xcodebuild test \
             -project OmniMusik/OmniMusik.xcodeproj \
             -scheme OmniMusik \
-            -destination 'platform=iOS Simulator,name=iPhone 16' \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }}" \
             -quiet

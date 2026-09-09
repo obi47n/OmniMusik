@@ -190,12 +190,13 @@
   }
 
   /* ---------- Figures ----------
-     Diagrams sit on a light surface in both themes. Mermaid picks its own text and
-     line colours, and they are chosen for a light ground; painting the ground
-     ourselves keeps every label legible without fighting the renderer. */
+     The renderer follows the viewer's theme -- dark node fills and dark label chips
+     in dark mode -- so the figure takes the theme's own surface rather than a fixed
+     light one. A forced white card put dark chips on a white ground; this way the
+     diagram and the page agree in both themes. */
   figure {
     margin: 18px 0 26px;
-    background: #ffffff;
+    background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 12px;
     padding: 18px 18px 12px;
@@ -207,10 +208,10 @@
   figcaption {
     font-family: var(--mono);
     font-size: 12px;
-    color: #56515f;
+    color: var(--ink-2);
     margin-top: 12px;
     padding-top: 10px;
-    border-top: 1px solid #e4e0ec;
+    border-top: 1px solid var(--line);
     max-width: 78ch;
   }
 
