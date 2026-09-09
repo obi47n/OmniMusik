@@ -14,6 +14,7 @@ import SwiftUI
 
 struct AccountView: View {
     @Environment(AuthController.self) private var auth
+    @Environment(SourceConnectionCenter.self) private var connections
 
     var body: some View {
         Group {
@@ -38,6 +39,74 @@ struct AccountView: View {
     }
 
     // MARK: - Signed out
+
+    /// Connected music services.
+    ///
+    /// Shown regardless of OmniMusik sign-in state, because the two are unrelated:
+    /// you can play Spotify without an OmniMusik account, and sync playlists without
+    /// Spotify. Presenting them together would imply a dependency that does not
+    /// exist.
+    @ViewBuilder
+    private var sourcesSection: some View {
+        if !connections.isEmpty {
+            Section {
+                ForEach(connections.rows) { row in
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(row.source.displayName)
+                            sourceSubtitle(for: row)
+                        }
+
+                        Spacer(minLength: 8)
+
+                        switch row.state {
+                        case .connecting:
+                            ProgressView().controlSize(.small)
+                        case .connected:
+                            Button("Disconnect") {
+                                Task { await connections.disconnect(row.source) }
+                            }
+                            .font(.subheadline)
+                        case .disconnected:
+                            Button("Connect") {
+                                Task { await connections.connect(row.source) }
+                            }
+                            .font(.subheadline.weight(.medium))
+                        case .unavailable:
+                            EmptyView()
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+            } header: {
+                Text("Music Services")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func sourceSubtitle(for row: SourceConnectionCenter.Row) -> some View {
+        switch row.state {
+        case .connected(let account):
+            Text(account ?? "Connected")
+                .font(.caption)
+                .foregroundStyle(Theme.accent)
+        case .disconnected:
+            Text("Not connected")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        case .connecting:
+            Text("Connecting…")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        case .unavailable(let reason):
+            // An explanation rather than a dead button, matching how the sign-in
+            // screen behaves in an unconfigured build.
+            Text(reason)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
 
     private var signedOut: some View {
         VStack(spacing: 24) {
@@ -90,7 +159,13 @@ struct AccountView: View {
                 .padding(.horizontal, 32)
             }
 
-            Spacer()
+            if !connections.isEmpty {
+                List { sourcesSection }
+                    .listStyle(.insetGrouped)
+                    .scrollDisabled(true)
+                    .frame(maxHeight: 220)
+            }
+
             Spacer()
         }
     }
@@ -117,6 +192,8 @@ struct AccountView: View {
                 }
                 .padding(.vertical, 6)
             }
+
+            sourcesSection
 
             Section {
                 Button("Sign Out", role: .destructive) {

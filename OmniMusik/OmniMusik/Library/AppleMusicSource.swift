@@ -18,7 +18,7 @@
 import Foundation
 
 @MainActor
-final class AppleMusicSource: MusicSource {
+final class AppleMusicSource: MusicSource, ConnectableSource {
 
     nonisolated let source: TrackSource = .appleMusic
 
@@ -33,4 +33,23 @@ final class AppleMusicSource: MusicSource {
     func search(_ query: String) async throws -> [Track] {
         throw MusicSourceError.notConfigured(.appleMusic)
     }
+
+    // MARK: - ConnectableSource
+
+    /// Reports *why* rather than simply refusing.
+    ///
+    /// Before `ConnectableSource` existed this source could only answer "not
+    /// available", and the account screen had no way to distinguish "you have not
+    /// connected this yet" from "this cannot be connected in this build". The
+    /// distinction matters: one deserves a button, the other an explanation.
+    var connectionState: SourceConnectionState {
+        .unavailable(reason: "MusicKit isn't enabled on this App ID yet. Apple Music will appear here once it is.")
+    }
+
+    /// Flips to `MusicAuthorization.request()` once MusicKit is enabled.
+    func connect() async throws {
+        throw SourceConnectionError.notConfigured(.appleMusic)
+    }
+
+    func disconnect() async {}
 }

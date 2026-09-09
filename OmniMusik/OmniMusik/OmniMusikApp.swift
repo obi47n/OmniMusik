@@ -16,6 +16,7 @@ struct OmniMusikApp: App {
     @State private var auth: AuthController
     @State private var playlistStore: PlaylistStore
     @State private var syncService: PlaylistSyncService
+    @State private var connections: SourceConnectionCenter
 
     /// Built explicitly rather than via `.modelContainer(for:)` so the same
     /// container can be handed to `LocalMusicSource`, which needs its own context.
@@ -34,10 +35,16 @@ struct OmniMusikApp: App {
 
         // One source list feeds both search and the library, so a source added
         // later appears in both without being registered twice.
+        let appleMusic = AppleMusicSource()
         let sources: [any MusicSource] = [
             LocalMusicSource(container: container),
-            AppleMusicSource()
+            appleMusic
         ]
+
+        // Only sources that need an account appear here; local files have none.
+        // A source added later joins both lists and shows up in the account screen
+        // without that screen changing.
+        _connections = State(initialValue: SourceConnectionCenter(sources: [appleMusic]))
 
         // Playlists resolve their entries against the same source list, so a
         // source added later becomes playable inside existing playlists too.
@@ -68,6 +75,7 @@ struct OmniMusikApp: App {
                 .environment(auth)
                 .environment(playlistStore)
                 .environment(syncService)
+                .environment(connections)
         }
         .modelContainer(container)
     }
