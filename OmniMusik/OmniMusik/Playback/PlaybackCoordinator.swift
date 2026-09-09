@@ -46,6 +46,21 @@ final class PlaybackCoordinator {
 
     /// Most recent Spotify handoff note, shown in Now Playing in debug builds.
     private(set) var spotifyDiagnostic: String?
+
+    /// A short explanation of something the person is about to see happen.
+    ///
+    /// Only set for events with no other explanation — currently just being sent to
+    /// the Spotify app. An unannounced app switch reads as a bug; the same switch
+    /// with a sentence attached reads as how the thing works.
+    private(set) var handoffNotice: String?
+
+    func clearHandoffNotice() { handoffNotice = nil }
+
+    /// True for the moment between deciding to wake Spotify and iOS taking the
+    /// screen. Drives the handoff transition.
+    private(set) var isHandingOffToSpotify = false
+
+    func endHandoffTransition() { isHandingOffToSpotify = false }
     private var activeProvider: (any PlaybackProvider)?
 
     /// Saved edits for the tracks in the queue.
@@ -91,8 +106,20 @@ final class PlaybackCoordinator {
         provider?.onTrackFinished = { [weak self] in
             self?.advanceAfterCompletion()
         }
-        provider?.onDiagnostic = { [weak self] note in
-            self?.spotifyDiagnostic = note
+        provider?.onWillWakeSpotify = { [weak self] in
+            self?.isHandingOffToSpotify = true
+        }
+        provider?.onHandoff = { [weak self] handoff in
+            guard let self else { return }
+            switch handoff {
+            case .playedInPlace(let reconnected):
+                self.spotifyDiagnostic = reconnected ? "played in place (reconnected)" : "played in place"
+            case .wokeSpotify:
+                self.spotifyDiagnostic = "woke Spotify — it was not resident"
+                self.handoffNotice = "Opening Spotify to continue. iOS suspends it while something else is playing, so it has to be woken."
+            case .disconnected(let reason):
+                self.spotifyDiagnostic = "disconnected: \(reason)"
+            }
         }
     }
 

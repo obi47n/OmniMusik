@@ -63,7 +63,35 @@ struct ContentView: View {
     /// target is iOS 18 and this needs no availability fork.
     private func docked<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
         content()
-            .safeAreaInset(edge: .bottom, spacing: 0) {
+            // Above the player rather than as an alert: the app is about to be sent to
+        // the background, so a modal would be dismissed unseen. A banner is still
+        // here on the way back, which is when the explanation is actually wanted.
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if let notice = coordinator.handoffNotice {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "arrow.up.forward.app")
+                    Text(notice).font(.caption)
+                    Spacer(minLength: 0)
+                    Button {
+                        coordinator.clearHandoffNotice()
+                    } label: {
+                        Image(systemName: "xmark").font(.caption2)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(.thinMaterial)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .task {
+                    // Long enough to read on return from Spotify, short enough not
+                    // to become furniture.
+                    try? await Task.sleep(for: .seconds(8))
+                    coordinator.clearHandoffNotice()
+                }
+            }
+        }
+        .animation(.snappy(duration: 0.25), value: coordinator.handoffNotice)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
                 if coordinator.currentTrack != nil {
                     MiniPlayerView(onTap: { showingNowPlaying = true })
                         .transition(.move(edge: .bottom).combined(with: .opacity))

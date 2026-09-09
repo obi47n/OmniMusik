@@ -21,6 +21,9 @@ struct OmniMusikApp: App {
     private let spotify: SpotifySource
     @State private var spotifyProvider: SpotifyPlaybackProvider?
     @Environment(\.scenePhase) private var scenePhase
+    /// Skipped under UI tests: the overlay covers the tab bar, so a tap lands on it
+    /// rather than on the app, and every test would race a decorative animation.
+    @State private var isLaunching = !ProcessInfo.processInfo.arguments.contains("-disableLaunchAnimation")
 
     /// Built explicitly rather than via `.modelContainer(for:)` so the same
     /// container can be handed to `LocalMusicSource`, which needs its own context.
@@ -76,7 +79,8 @@ struct OmniMusikApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ZStack {
+                ContentView()
                 .environment(coordinator)
                 .environment(searchService)
                 .environment(libraryStore)
@@ -103,6 +107,28 @@ struct OmniMusikApp: App {
                     guard phase == .active else { return }
                     Task { await spotifyProvider?.connectIfPossible() }
                 }
+
+                if coordinator.isHandingOffToSpotify {
+                    HandoffView()
+                        .transition(.opacity)
+                        .zIndex(2)
+                        .task {
+                            // Cleared on a timer rather than on backgrounding: if the
+                            // wake fails, the overlay must still go away.
+                            try? await Task.sleep(for: .milliseconds(1400))
+                            coordinator.endHandoffTransition()
+                        }
+                }
+
+                if isLaunching {
+                    LaunchView { withAnimation(.smooth(duration: 0.35)) { isLaunching = false } }
+                        .transition(.opacity)
+                        // The app underneath is already live; this only covers it.
+                        // Nothing waits on the animation, so a slow launch is never
+                        // made slower by it.
+                        .zIndex(1)
+                }
+            }
         }
         .modelContainer(container)
     }

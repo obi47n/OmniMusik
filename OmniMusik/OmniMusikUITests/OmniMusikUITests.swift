@@ -38,6 +38,10 @@ final class OmniMusikUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         app = XCUIApplication()
+        // The launch animation covers the tab bar for about a second, so taps land on
+        // it rather than on the app. Skipping it keeps these tests about behaviour
+        // rather than about racing a decoration.
+        app.launchArguments = ["-disableLaunchAnimation"]
         app.launch()
     }
 
