@@ -70,6 +70,10 @@ jobs:
   ios:
     name: iOS
     runs-on: macos-15
+    # A macOS minute costs ten Linux minutes, and a UI test waiting on a simulator
+    # that never answers would otherwise run to GitHub's six-hour default. A clean
+    # run is under forty minutes; anything past this is a hang, not a slow build.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -99,10 +103,28 @@ jobs:
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
 
       # The shared scheme disables parallel testing on purpose; see CLAUDE.md.
+      #
+      # Not -quiet. It hid every "Test Case ... started" line, so a suite that was
+      # timing out one assertion at a time looked, from outside, exactly like a
+      # build that was merely slow -- for forty minutes. The per-test lines are the
+      # only live signal a macOS runner gives, and they are worth the noise.
+      #
+      # The result bundle is kept and uploaded on failure. Without it a failed run
+      # leaves nothing but the console text; with it the element hierarchy of every
+      # failed UI test can be exported locally, which is how those get diagnosed.
       - name: Test
         run: |
           xcodebuild test \
             -project OmniMusik/OmniMusik.xcodeproj \
             -scheme OmniMusik \
             -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }}" \
-            -quiet
+            -resultBundlePath TestResults.xcresult \
+            2>&1 | grep -E "Test Case|Test Suite|error:|passed|failed|\*\* TEST" ; exit ${PIPESTATUS[0]}
+
+      - name: Keep the result bundle
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-test-results
+          path: TestResults.xcresult
+          retention-days: 7

@@ -3,9 +3,15 @@
 # CloudFront's *.cloudfront.net name is assigned, not chosen, and cannot be renamed;
 # the way to change the link is to put a domain in front of it. Everything here is
 # gated on `web_domain` so the stack applies unchanged while the domain does not
-# exist yet -- registering one is a purchase, which is a person's action, and the
-# hosted zone it creates is looked up rather than declared so that Terraform does
-# not race the registrar and end up owning a second zone for the same name.
+# exist yet -- registering one is a purchase, which is a person's action.
+#
+# The hosted zone is Terraform's, whichever registrar sells the name. Route 53
+# refused to register for this account -- a hold it places on new accounts, lifted
+# only by a support case -- so the domain may well come from elsewhere, and a
+# registrar elsewhere simply needs its nameservers pointed at this zone's four NS
+# records (`web_nameservers` below). Had Route 53 registered it, it would have made
+# a zone of its own; that one would then be deleted and this one used, so there is
+# exactly one zone per name and Terraform owns it.
 #
 # The certificate is validated over DNS with records Terraform writes into that
 # zone, so there is nothing to click. It lives in us-east-1 because CloudFront
@@ -28,10 +34,10 @@ locals {
   web_custom_origins = [for h in local.web_hostnames : "https://${h}"]
 }
 
-# Created by Route 53 at registration. Looked up, never declared.
-data "aws_route53_zone" "web" {
-  count = local.domain_enabled ? 1 : 0
-  name  = var.web_domain
+resource "aws_route53_zone" "web" {
+  count   = local.domain_enabled ? 1 : 0
+  name    = var.web_domain
+  comment = "OmniMusik web client"
 }
 
 resource "aws_acm_certificate" "web" {
@@ -54,7 +60,7 @@ resource "aws_route53_record" "web_cert_validation" {
     dvo.domain_name => { name = dvo.resource_record_name, type = dvo.resource_record_type, record = dvo.resource_record_value }
   } : {}
 
-  zone_id         = data.aws_route53_zone.web[0].zone_id
+  zone_id         = aws_route53_zone.web[0].zone_id
   name            = each.value.name
   type            = each.value.type
   records         = [each.value.record]
@@ -74,7 +80,7 @@ resource "aws_acm_certificate_validation" "web" {
 resource "aws_route53_record" "web_a" {
   for_each = toset(local.web_hostnames)
 
-  zone_id = data.aws_route53_zone.web[0].zone_id
+  zone_id = aws_route53_zone.web[0].zone_id
   name    = each.value
   type    = "A"
 
@@ -88,7 +94,7 @@ resource "aws_route53_record" "web_a" {
 resource "aws_route53_record" "web_aaaa" {
   for_each = toset(local.web_hostnames)
 
-  zone_id = data.aws_route53_zone.web[0].zone_id
+  zone_id = aws_route53_zone.web[0].zone_id
   name    = each.value
   type    = "AAAA"
 
@@ -97,6 +103,11 @@ resource "aws_route53_record" "web_aaaa" {
     zone_id                = aws_cloudfront_distribution.web.hosted_zone_id
     evaluate_target_health = false
   }
+}
+
+output "web_nameservers" {
+  description = "Set these as the domain's nameservers at the registrar. Empty until web_domain is set."
+  value       = local.domain_enabled ? aws_route53_zone.web[0].name_servers : []
 }
 
 output "web_custom_url" {
