@@ -17,6 +17,7 @@ struct OmniMusikApp: App {
     @State private var playlistStore: PlaylistStore
     @State private var syncService: PlaylistSyncService
     @State private var connections: SourceConnectionCenter
+    private let spotify: SpotifySource
 
     /// Built explicitly rather than via `.modelContainer(for:)` so the same
     /// container can be handed to `LocalMusicSource`, which needs its own context.
@@ -37,6 +38,7 @@ struct OmniMusikApp: App {
         // later appears in both without being registered twice.
         let appleMusic = AppleMusicSource()
         let spotify = SpotifySource()
+        self.spotify = spotify
         let sources: [any MusicSource] = [
             LocalMusicSource(container: container),
             appleMusic,
@@ -78,6 +80,14 @@ struct OmniMusikApp: App {
                 .environment(playlistStore)
                 .environment(syncService)
                 .environment(connections)
+                .task {
+                    // Spotify playback needs a token from the connected source. Done
+                    // here rather than in the coordinator so the coordinator keeps no
+                    // knowledge of how a token is obtained.
+                    coordinator.attachSpotifyProvider(
+                        SpotifyPlaybackProvider { try await spotify.accessTokenForPlayback() }
+                    )
+                }
         }
         .modelContainer(container)
     }

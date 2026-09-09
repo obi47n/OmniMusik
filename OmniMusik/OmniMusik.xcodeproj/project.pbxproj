@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		AA1000000000000000000003 /* SpotifyiOS in Frameworks */ = {isa = PBXBuildFile; productRef = AA1000000000000000000002 /* SpotifyiOS */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		EF9713D0305107C400B11585 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AA1000000000000000000003 /* SpotifyiOS in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +117,7 @@
 			);
 			name = OmniMusik;
 			packageProductDependencies = (
+				AA1000000000000000000002 /* SpotifyiOS */,
 			);
 			productName = OmniMusik;
 			productReference = EF9713BF305107C200B11585 /* OmniMusik.app */;
@@ -195,6 +201,9 @@
 			);
 			mainGroup = EF9713B6305107C200B11585;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				AA1000000000000000000001 /* XCRemoteSwiftPackageReference "ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = EF9713C0305107C200B11585 /* Products */;
 			projectDirPath = "";
@@ -561,6 +570,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		AA1000000000000000000001 /* XCRemoteSwiftPackageReference "ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/spotify/ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.0.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AA1000000000000000000002 /* SpotifyiOS */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AA1000000000000000000001 /* XCRemoteSwiftPackageReference "ios-sdk" */;
+			productName = SpotifyiOS;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = EF9713B7305107C200B11585 /* Project object */;
 }

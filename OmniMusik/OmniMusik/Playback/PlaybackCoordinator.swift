@@ -38,6 +38,11 @@ final class PlaybackCoordinator {
     // MARK: - Providers
 
     private let localProvider = LocalPlaybackProvider()
+
+    /// Injected rather than constructed here, because it needs a Spotify access
+    /// token and the coordinator has no business knowing how one is obtained.
+    /// Absent until a Spotify connection exists, which is what routing checks.
+    private var spotifyProvider: SpotifyPlaybackProvider?
     private var activeProvider: (any PlaybackProvider)?
 
     /// Saved edits for the tracks in the queue.
@@ -67,6 +72,19 @@ final class PlaybackCoordinator {
         }
         configureRemoteCommands()
         configureSessionHandling()
+    }
+
+    /// Supplies the Spotify provider once a connection exists.
+    ///
+    /// Called by the app on launch and after connecting, rather than the coordinator
+    /// reaching for a source: routing stays a lookup, and a provider that cannot work
+    /// is simply absent rather than present-and-failing.
+    func attachSpotifyProvider(_ provider: SpotifyPlaybackProvider?) {
+        spotifyProvider?.onTrackFinished = nil
+        spotifyProvider = provider
+        provider?.onTrackFinished = { [weak self] in
+            self?.advanceAfterCompletion()
+        }
     }
 
     private func configureRemoteCommands() {
@@ -199,7 +217,7 @@ final class PlaybackCoordinator {
         case .appleMusic:
             return nil  // awaiting MusicKit provisioning
         case .spotify:
-            return nil  // awaiting SpotifyPlaybackProvider (SPTAppRemote)
+            return spotifyProvider
         }
     }
 

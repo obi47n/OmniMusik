@@ -246,6 +246,15 @@ final class SpotifySource: NSObject, MusicSource, ConnectableSource {
             .joined(separator: "&")
     }
 
+    /// A fresh token for the playback provider.
+    ///
+    /// Exposed rather than handing the provider this whole object: the provider needs
+    /// exactly one thing from the source, and passing a closure keeps them testable
+    /// apart and stops the provider growing opinions about connection state.
+    func accessTokenForPlayback() async throws -> String {
+        try await validAccessToken()
+    }
+
     private func fetchAccountName(accessToken: String) async throws -> String? {
         let profile: SpotifyProfile = try await get("/me", query: [:], accessToken: accessToken)
         return profile.display_name ?? profile.email
