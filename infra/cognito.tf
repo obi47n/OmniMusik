@@ -85,11 +85,15 @@ resource "aws_cognito_user_pool_client" "app" {
 
   # One client serves both the app and the web client. They run the same flow
   # against the same pool and differ only in redirect URI.
+  # Both the deployed client and a local dev server. Keeping localhost registered
+  # means development does not need a second app client that can drift from this one.
   callback_urls = [
+    "https://${aws_cloudfront_distribution.web.domain_name}/callback",
     "${var.web_origin}/callback",
     "${var.ios_redirect_scheme}://auth",
   ]
   logout_urls = [
+    "https://${aws_cloudfront_distribution.web.domain_name}",
     var.web_origin,
     "${var.ios_redirect_scheme}://auth",
   ]

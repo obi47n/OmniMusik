@@ -118,7 +118,7 @@ resource "aws_apprunner_service" "api" {
           DB_PORT                = tostring(aws_db_instance.main.port)
           DB_NAME                = aws_db_instance.main.db_name
           DB_USER                = aws_db_instance.main.username
-          ALLOWED_ORIGINS        = var.web_origin
+          ALLOWED_ORIGINS        = "https://${aws_cloudfront_distribution.web.domain_name},${var.web_origin}"
           COGNITO_ISSUER_URI     = "https://cognito-idp.${var.region}.amazonaws.com/${aws_cognito_user_pool.main.id}"
         }
 

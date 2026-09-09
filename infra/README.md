@@ -29,6 +29,8 @@ terraform output api_url                 # -> VITE_API_BASE_URL
 | Secrets Manager entry | Generated password, injected at container start |
 | ECR repository with a lifecycle policy | Ten most recent images |
 | App Runner service, VPC connector, two IAM roles | The service itself |
+| S3 bucket + CloudFront with OAC | The web client; private bucket, only CloudFront can read it |
+| GitHub OIDC provider + deploy role | CI publishes artifacts with no stored AWS key |
 
 ## Decisions worth knowing
 
@@ -59,6 +61,37 @@ Conflating them is a common mistake and grants the build more than it needs.
 **`multi_az`, `deletion_protection` and Performance Insights are all off.** Every one
 would be on in production. They are off so this stack stays cheap and tears down
 cleanly, which is the right tradeoff for a portfolio and the wrong one for a product.
+
+**The web client needs SPA error responses, and it is authentication that breaks
+without them.** Vite emits one `index.html` and the router resolves the path, so S3
+has no object at `/callback` -- the OAuth redirect URI. Without the 403/404 rewrites
+to `/index.html`, finishing sign-in lands on an XML access-denied page rather than the
+app.
+
+**CI has no AWS key.** GitHub Actions federates through OIDC and assumes a role that
+only this repository can assume, so there is no long-lived credential to leak. The
+role can push images, publish the web client and trigger a rollout -- it deliberately
+cannot change infrastructure. Terraform stays a local, deliberate action.
+
+Set `github_repository` once the repo has a remote; leave it empty and none of the CI
+resources are created, so the stack applies either way. If the account already has a
+GitHub OIDC provider from another project, set `create_github_oidc_provider = false`
+-- an account may only have one.
+
+## Cost
+
+Rough monthly, us-east-1, idle:
+
+| Item | Approx |
+|---|---|
+| NAT gateway | $32 + data |
+| RDS db.t4g.micro, 20 GB gp3 | $12-15 |
+| App Runner 0.25 vCPU / 0.5 GB | $5-25 depending on active time |
+| CloudFront + S3 at portfolio traffic | Cents |
+
+Call it **$50-75/month** left running. The NAT gateway is the largest single line and
+the one to attack first -- an interface VPC endpoint for `cognito-idp` would remove
+the need for it.
 
 ## Caveat
 

@@ -37,3 +37,23 @@ output "sign_in_with_apple_enabled" {
   description = "Whether the pool federates Sign in with Apple in this deployment."
   value       = var.enable_sign_in_with_apple
 }
+
+output "web_url" {
+  description = "Public URL of the web client. Also a registered Cognito callback origin."
+  value       = "https://${aws_cloudfront_distribution.web.domain_name}"
+}
+
+output "web_bucket" {
+  description = "S3 bucket the built web client is synced into."
+  value       = aws_s3_bucket.web.id
+}
+
+output "cloudfront_distribution_id" {
+  description = "Needed to invalidate the cache after a web deploy."
+  value       = aws_cloudfront_distribution.web.id
+}
+
+output "github_deploy_role_arn" {
+  description = "Role GitHub Actions assumes. Empty until github_repository is set."
+  value       = local.ci_enabled ? aws_iam_role.github_deploy[0].arn : ""
+}
