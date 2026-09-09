@@ -1,0 +1,150 @@
+/*
+ * Palette taken from the iOS app's Theme.swift, so the web client and the product
+ * read as one thing. The purple is the app's own accentOnDark; the light-theme
+ * accent is darkened because #B57BFF does not hold up as text on white.
+ */
+:root {
+  --ground: #faf9fc;
+  --surface: #ffffff;
+  --raised: #f2f0f7;
+  --border: #e4e0ec;
+  --text: #1a1820;
+  --text-2: #56515f;
+  --text-3: #857f92;
+  --accent: #6d28d9;
+  --accent-soft: #f0e9fe;
+  --danger: #b91c1c;
+  --radius: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #0e0e10;
+    --surface: #1c1c1f;
+    --raised: #282830;
+    --border: #33333b;
+    --text: #ebebeb;
+    --text-2: #9e9e9e;
+    --text-3: #616161;
+    --accent: #b57bff;
+    --accent-soft: #241b33;
+    --danger: #f87171;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--accent); }
+
+.shell { max-width: 860px; margin: 0 auto; padding: 0 20px 80px; }
+
+header.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.brand { font-size: 18px; font-weight: 650; letter-spacing: -0.01em; }
+.brand span { color: var(--accent); }
+
+.who { font-size: 13px; color: var(--text-2); }
+
+button {
+  font: inherit;
+  font-weight: 550;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  padding: 8px 14px;
+  cursor: pointer;
+}
+button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.primary:hover:not(:disabled) { color: #fff; filter: brightness(1.08); }
+button.danger { color: var(--danger); border-color: var(--border); }
+button.icon { padding: 4px 9px; font-size: 13px; }
+
+input[type='text'] {
+  font: inherit;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  min-width: 220px;
+}
+input[type='text']:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+h1 { font-size: 26px; letter-spacing: -0.02em; margin: 0 0 6px; }
+h2 { font-size: 19px; letter-spacing: -0.01em; margin: 0; }
+.muted { color: var(--text-2); }
+.small { font-size: 13px; }
+
+.row-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+ul.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+
+li.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.card-main { min-width: 0; }
+.card-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-sub { font-size: 13px; color: var(--text-2); display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
+
+.badge {
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.badge.plain { background: var(--raised); color: var(--text-2); }
+
+.notice {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 13px 16px;
+  margin-bottom: 22px;
+}
+
+.notice.warn { border-left-color: var(--danger); }
+.notice h3 { margin: 0 0 4px; font-size: 14px; }
+.notice p { margin: 0; font-size: 13.5px; color: var(--text-2); }
+
+.center { text-align: center; padding: 72px 20px; }
+.center h1 { margin-bottom: 10px; }
+.center p { color: var(--text-2); max-width: 44ch; margin: 0 auto 22px; }
+
+.unplayable .card-title { color: var(--text-3); }
