@@ -121,7 +121,7 @@ struct OmniMusikApp: App {
                 }
 
                 if isLaunching {
-                    LaunchView { withAnimation(.smooth(duration: 0.35)) { isLaunching = false } }
+                    LaunchView { withAnimation(.smooth(duration: 0.28)) { isLaunching = false } }
                         .transition(.opacity)
                         // The app underneath is already live; this only covers it.
                         // Nothing waits on the animation, so a slow launch is never

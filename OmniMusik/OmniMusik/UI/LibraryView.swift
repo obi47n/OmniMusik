@@ -324,7 +324,7 @@ struct TrackRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            ArtworkView(data: track.artworkData)
+            ArtworkView(track: track)
                 .frame(width: 48, height: 48)
 
             VStack(alignment: .leading, spacing: 2) {

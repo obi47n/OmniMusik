@@ -34,7 +34,7 @@ struct ExportSheet: View {
             VStack(spacing: 24) {
                 Spacer()
 
-                ArtworkView(data: request.track.artworkData, cornerRadius: 10)
+                ArtworkView(track: request.track, cornerRadius: 10)
                     .frame(width: 140, height: 140)
 
                 VStack(spacing: 6) {

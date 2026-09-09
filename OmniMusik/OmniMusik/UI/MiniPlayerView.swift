@@ -24,7 +24,7 @@ struct MiniPlayerView: View {
                     // tappable, which is what the gesture used to give.
                     Button(action: onTap) {
                         HStack(spacing: 12) {
-                            ArtworkView(data: track.artworkData, cornerRadius: 4)
+                            ArtworkView(track: track, cornerRadius: 4)
                                 .frame(width: 36, height: 36)
 
                             VStack(alignment: .leading, spacing: 1) {

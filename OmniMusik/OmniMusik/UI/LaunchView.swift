@@ -26,6 +26,14 @@ struct LaunchView: View {
     @State private var animating = false
     @State private var settled = false
 
+    /// The exit is a stage of its own, not an absence.
+    ///
+    /// Removing the view and cross-fading the layer underneath reads as a cut: the
+    /// bars and wordmark are simply gone one frame later. Letting them leave first --
+    /// meter opening outward, wordmark lifting away -- turns the disappearance into
+    /// the end of the animation rather than an interruption of it.
+    @State private var leaving = false
+
     /// Heights the bars settle to, mirroring the five nodes of the playback graph:
     /// player, timePitch, EQ, reverb, mixer.
     private let restingHeights: [CGFloat] = [18, 34, 52, 34, 22]
@@ -42,11 +50,15 @@ struct LaunchView: View {
                     Text("Musik").foregroundStyle(Theme.accentOnDark)
                 }
                 .font(.system(size: 30, weight: .semibold, design: .default))
-                .opacity(settled ? 1 : 0)
-                .offset(y: settled ? 0 : 8)
+                .opacity(leaving ? 0 : (settled ? 1 : 0))
+                .offset(y: leaving ? -10 : (settled ? 0 : 8))
                 .animation(.smooth(duration: 0.45), value: settled)
+                .animation(.smooth(duration: 0.3), value: leaving)
             }
         }
+        .opacity(leaving ? 0 : 1)
+        .scaleEffect(leaving ? 1.04 : 1)
+        .animation(.smooth(duration: 0.34), value: leaving)
         .task { await run() }
     }
 
@@ -69,6 +81,14 @@ struct LaunchView: View {
                             .delay(Double(index) * 0.09),
                         value: animating
                     )
+                    // Opening outward on the way out, so the meter releases rather
+                    // than snapping shut.
+                    .scaleEffect(y: leaving ? 0.2 : 1, anchor: .center)
+                    .opacity(leaving ? 0 : 1)
+                    .animation(
+                        .smooth(duration: 0.3).delay(Double(index) * 0.035),
+                        value: leaving
+                    )
             }
         }
         .frame(height: 64)
@@ -81,17 +101,25 @@ struct LaunchView: View {
 
     private func run() async {
         if reduceMotion {
-            // No bouncing: appear, hold briefly, leave.
+            // No bouncing and no staged exit: appear, hold briefly, fade.
             settled = true
-            try? await Task.sleep(for: .milliseconds(450))
+            try? await Task.sleep(for: .milliseconds(420))
+            leaving = true
+            try? await Task.sleep(for: .milliseconds(220))
             onFinished()
             return
         }
 
         animating = true
         try? await Task.sleep(for: .milliseconds(700))
+
         settled = true
-        try? await Task.sleep(for: .milliseconds(420))
+        try? await Task.sleep(for: .milliseconds(380))
+
+        // Let the content leave before the layer does, so the handover to the app
+        // underneath is a continuation rather than a cut.
+        leaving = true
+        try? await Task.sleep(for: .milliseconds(300))
         onFinished()
     }
 }

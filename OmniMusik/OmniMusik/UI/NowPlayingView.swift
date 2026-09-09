@@ -22,7 +22,11 @@ struct NowPlayingView: View {
             VStack(spacing: 24) {
                 Spacer(minLength: 0)
 
-                ArtworkView(data: coordinator.currentTrack?.artworkData, cornerRadius: 12)
+                ArtworkView(
+                    data: coordinator.currentTrack?.artworkData,
+                    url: coordinator.currentTrack?.artworkURL,
+                    cornerRadius: 12
+                )
                     .frame(maxWidth: 320)
                     .aspectRatio(1, contentMode: .fit)
                     .shadow(radius: 16, y: 8)

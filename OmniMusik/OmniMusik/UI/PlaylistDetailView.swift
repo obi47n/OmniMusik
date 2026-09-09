@@ -194,7 +194,7 @@ struct PlaylistDetailView: View {
     @ViewBuilder
     private func row(for item: ResolvedEntry, in playlist: Playlist) -> some View {
         HStack(spacing: 12) {
-            ArtworkView(data: item.track?.artworkData)
+            ArtworkView(data: item.track?.artworkData, url: item.track?.artworkURL)
                 .frame(width: 44, height: 44)
                 .opacity(item.isPlayable ? 1 : 0.45)
 

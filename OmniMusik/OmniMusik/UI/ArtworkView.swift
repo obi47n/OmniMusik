@@ -8,6 +8,11 @@ import UIKit
 
 /// Album art with a source-appropriate placeholder. Used at every size from the
 /// mini player to the Now Playing hero, so sizing is the caller's decision.
+///
+/// **Prefer `init(track:)`.** Local files carry artwork as bytes and remote sources
+/// hand back a URL, so passing only `data` silently renders a placeholder for every
+/// streaming track — which is exactly what happened when Spotify was added and five
+/// of six call sites were left on the data-only initialiser.
 struct ArtworkView: View {
     let data: Data?
 
