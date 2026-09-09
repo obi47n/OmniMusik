@@ -18,7 +18,9 @@ struct ContentView: View {
                 NavigationStack { LibraryView() }
             }
 
-            Tab("Playlists", systemImage: "music.note.list") {
+            // Distinct from Library's icon: two tabs sharing music.note.list
+            // gave the tab bar two identical glyphs.
+            Tab("Playlists", systemImage: "list.bullet.rectangle") {
                 NavigationStack { PlaylistsView() }
             }
 

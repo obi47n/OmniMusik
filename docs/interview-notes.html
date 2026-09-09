@@ -437,6 +437,7 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
     <li><a href="#architecture">Architecture</a></li>
     <li><a href="#engine">The audio engine</a></li>
     <li><a href="#concurrency">Concurrency</a></li>
+    <li><a href="#playlists">Cross-source playlists</a></li>
     <li><a href="#bugs">Two war stories</a></li>
     <li><a href="#defend">Decisions to defend</a></li>
     <li><a href="#limits">Honest limitations</a></li>
@@ -533,6 +534,7 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
         <tr><td>Playback</td><td><code>PlaybackProvider</code> and its implementations, <code>PlaybackCoordinator</code> which owns the queue and routes on <code>track.source</code>, <code>NowPlayingCenter</code>, <code>AudioSessionObserver</code>.</td></tr>
         <tr><td>Library</td><td><code>MusicSource</code> and implementations, SwiftData persistence, file&#8209;owning storage, import, <code>LibraryStore</code>.</td></tr>
         <tr><td>Search</td><td><code>SearchService</code> &mdash; concurrent fan&#8209;out across sources.</td></tr>
+        <tr><td>Studio</td><td>Effects UI, waveform analysis, <code>OfflineRenderer</code> for baking an edit into a file.</td></tr>
         <tr><td>Studio</td><td>Effects UI, waveform analysis and rendering.</td></tr>
         <tr><td>Auth</td><td><code>AuthProvider</code> interface, Cognito implementation, Keychain token store.</td></tr>
       </tbody>
@@ -617,6 +619,48 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
   <p>Sections are ordered by the canonical <code>TrackSource</code> order rather than by whichever source answered first, so results do not reshuffle between searches.</p>
 </section>
 
+<section id="playlists">
+  <h2>Cross-source playlists</h2>
+  <p class="section-note">The payoff of the whole architecture, and the best design question in the project to be asked about.</p>
+
+  <p>A playlist has to hold a local file and an Apple Music track in one ordered list. Those two things live in completely different worlds: local tracks are SwiftData rows; Apple Music tracks are <strong>not persisted at all</strong>, because caching a catalog that changes underneath you means serving stale copies of someone else&rsquo;s data.</p>
+
+  <p>So a playlist can hold neither <code>Track</code> values nor SwiftData relationships. It holds <code>PlaylistEntry</code>: the <code>(source, sourceID)</code> pair that identifies a track anywhere, plus a denormalized snapshot of title, artist, and duration.</p>
+
+  <div class="qa">
+    <div class="q">
+      <p class="q-prompt">Why not a SwiftData relationship?</p>
+      <p>Two independent reasons. A relationship would have to point at <code>LocalTrackEntity</code>, which would quietly restrict playlists to local files &mdash; the exact thing the feature exists to avoid. And relationships are <strong>unordered</strong>, while order is the entire point of a playlist; preserving it would mean an explicit position column and re-numbering every sibling on each move.</p>
+    </div>
+
+    <div class="q">
+      <p class="q-prompt">Why denormalize the title and artist?</p>
+      <p>So the playlist can describe itself when its source cannot answer. Without the snapshot, a playlist of Apple Music tracks becomes blank rows the moment the subscription lapses, the account is unauthorized, or the network is gone &mdash; the entries are still there, but nothing can say what they were.</p>
+      <p>With it, the row still reads correctly and is simply marked unplayable, and the screen distinguishes &ldquo;Missing&rdquo; (a deleted local file) from &ldquo;Not connected&rdquo; (a source that is unavailable), because the person can only act on one of those.</p>
+    </div>
+
+    <div class="q">
+      <p class="q-prompt">What is the cost of that choice?</p>
+      <p>Entries are encoded JSON, so they are <strong>opaque to the query engine</strong>. A future &ldquo;which playlists contain this track&rdquo; screen would need a scan or a secondary index. Volunteering this is better than being caught by it: it is a real tradeoff accepted for ordering and cross-source support, not an oversight.</p>
+    </div>
+
+    <div class="q">
+      <p class="q-prompt">Are duplicates allowed?</p>
+      <p>Yes, deliberately &mdash; a set that opens and closes on the same record is a real thing people build. Each entry carries its own identity separate from its <code>sourceID</code>, which is what makes removing exactly one of two copies well defined. The &ldquo;add unless already present&rdquo; policy lives at the call site rather than buried in the model.</p>
+    </div>
+
+    <div class="q">
+      <p class="q-prompt">How does resolution work?</p>
+      <p><code>MusicSource</code> gained <code>track(forSourceID:)</code> with a protocol-extension default returning nil, meaning &ldquo;this source cannot supply that track right now&rdquo;. That is an ordinary answer rather than a throw, so a stubbed Apple Music degrades to unplayable instead of failing the playlist.</p>
+      <p>Resolution fans out <strong>per source, not per entry</strong> &mdash; a playlist with forty local tracks is one batched lookup, not forty. A queue built from a playlist skips unplayable entries rather than stalling partway through.</p>
+    </div>
+  </div>
+
+  <h3>Export, while you are in this territory</h3>
+  <p>Edits are non-destructive, which means a slowed-and-reverbed version only exists inside the app. Export bakes one into a file using <code>AVAudioEngine</code>&rsquo;s manual rendering mode &mdash; not <code>AVAssetExportSession</code>, which can trim and transcode but cannot apply a time-pitch or reverb node.</p>
+  <p>Two failure modes there are silent rather than loud, which is why both are tested: output length must be <code>sourceFrames / rate</code> or every slowed export is truncated and <em>still plays, just stops early</em>; and a reverb tail must be appended or the file ends on a cut that was never audible. The renderer&rsquo;s graph is a deliberate copy of the player&rsquo;s &mdash; if they drifted, exports would stop sounding like what was auditioned.</p>
+</section>
+
 <section id="bugs">
   <h2>Two war stories</h2>
   <p class="section-note">For &ldquo;tell me about a difficult bug.&rdquo; Both are real, and both have a clean diagnostic arc.</p>
@@ -677,9 +721,9 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
   <h2>Honest limitations</h2>
   <p class="section-note">Prepared answers for &ldquo;what would you do differently.&rdquo; Volunteering these reads as judgment; being caught out by them does not.</p>
 
-  <h3>Test coverage is a smoke suite, not a test suite</h3>
-  <p>There are five XCUITest cases covering one question per subsystem: does it do anything at all when driven for real. There are <strong>no unit tests</strong> &mdash; nothing covers the generation counter, the trim arithmetic, or the credential refresh rule, which are the three places a bug would be both likely and invisible.</p>
-  <p>The honest framing is that the smoke suite was written to retire a specific risk &mdash; a large amount of code had been written without a compiler available and had never been executed &mdash; and that unit tests on the audio arithmetic are the next thing to write. Do not describe this as tested.</p>
+  <h3>Test coverage is real but narrow</h3>
+  <p>40 tests pass: 33 unit tests over the playlist rules, <code>AudioEdit</code> identity, Codable round trips, and the renderer&rsquo;s timeline arithmetic, plus 7 UI tests driving each subsystem end to end.</p>
+  <p>What is <strong>not</strong> covered: the generation counter and the trim arithmetic inside <code>LocalPlaybackProvider</code>, which need an engine to exercise and are the two places a bug would be both likely and invisible. Nor is anything about how the audio actually sounds &mdash; the export tests assert duration, not fidelity. Describe this as &ldquo;the domain logic is tested and the subsystems are smoke-tested&rdquo;, which is true, rather than &ldquo;it has tests&rdquo;, which invites the wrong follow-up.</p>
 
   <h3>Effects will never work on Apple Music</h3>
   <p>Worth stating before being asked. It is a structural property of DRM&#8209;protected playback, not a roadmap item, and the domain model encodes it rather than leaving it as a comment.</p>
@@ -704,7 +748,9 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
     <div class="row"><div class="status warn">Fixed, needs device check</div><div class="row-body"><strong>Background audio on lock.</strong> The built <code>Info.plist</code> now carries <code>UIBackgroundModes</code> as an array containing <code>audio</code>, confirmed in both simulator and device builds. Confirming the audio actually keeps playing is a device test.</div></div>
     <div class="row"><div class="status warn">Scaffolded only</div><div class="row-body"><strong>Authentication.</strong> The interface, Cognito implementation, Keychain store, and account screen exist and compile. No user pool has been created yet, so nothing has ever signed in. The configuration ships as placeholders and the UI says so.</div></div>
     <div class="row"><div class="status blocked">Blocked externally</div><div class="row-body"><strong>MusicKit / Apple Music.</strong> The developer account is too new for the App Service to be enabled. <code>AppleMusicSource</code> is a deliberate stub reporting &ldquo;not connected&rdquo;; the provider slot exists and returns nothing. This is worth mentioning unprompted &mdash; it explains the stub better than the stub does.</div></div>
-    <div class="row"><div class="status todo">Planned</div><div class="row-body"><strong>Cross&#8209;source playlists, queue view, Spring Boot backend, React control plane, AWS deployment, offline render export, tests, demo materials.</strong> Designed, not written.</div></div>
+    <div class="row"><div class="status ok">Smoke-tested</div><div class="row-body"><strong>Cross&#8209;source playlists and the queue view.</strong> Creating a playlist from the library and opening it is driven end to end by a UI test, and the playlist rules have unit coverage.</div></div>
+    <div class="row"><div class="status ok">Unit-tested</div><div class="row-body"><strong>Offline render export.</strong> Covered for identity export, rate stretching (a 0.5x export must not be truncated to the source length), trimmed range, empty range rejection, and refusal of Apple Music tracks. Not yet listened to &mdash; the tests assert duration, not that it sounds right.</div></div>
+    <div class="row"><div class="status todo">Planned</div><div class="row-body"><strong>Spring Boot backend, React control plane, AWS deployment, demo materials.</strong> Designed, not written.</div></div>
   </div>
 
   <div class="callout">
