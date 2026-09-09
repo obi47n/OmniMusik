@@ -182,6 +182,15 @@ final class SpotifyPlaybackProvider: NSObject, PlaybackProvider {
             // The completion reports whether Spotify could be started at all, which
             // is the one failure worth surfacing here: not installed, or installed
             // but not logged in. Swallowing it would leave a silent dead transport.
+            // iOS only permits launching another app from the foreground, so the
+            // wake is impossible here -- from the lock screen openURL is refused and
+            // playback would simply stop with nothing on screen to explain it. Say so
+            // instead, and let the coordinator keep the queue moving.
+            guard UIApplication.shared.applicationState == .active else {
+                HandoffLog.note("wake path: refused, app not active")
+                throw PlaybackError.requiresForeground(.spotify)
+            }
+
             pendingPlayURI = uri
 
             // Announce first, then pause long enough for the transition to be seen.

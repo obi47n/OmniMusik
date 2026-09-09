@@ -70,7 +70,7 @@ struct AddToPlaylistView: View {
                 dismiss()
             } label: {
                 HStack {
-                    PlaylistRow(playlist: playlist)
+                    PlaylistPickerRow(playlist: playlist)
                     Spacer()
                     if playlist.contains(track) {
                         Image(systemName: "checkmark")
@@ -82,5 +82,45 @@ struct AddToPlaylistView: View {
             .buttonStyle(.plain)
         }
         .listStyle(.plain)
+    }
+}
+
+
+/// A playlist as one line, for picking.
+///
+/// The index shows playlists as tiles, which is right for recognising them and wrong
+/// for choosing from a list: a sheet of squares is harder to scan than a column of
+/// names. Different job, different shape.
+private struct PlaylistPickerRow: View {
+    let playlist: Playlist
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(playlist.name)
+                .font(.body)
+                .lineLimit(1)
+
+            HStack(spacing: 6) {
+                Text(subtitle)
+
+                if playlist.isCrossSource {
+                    Text("MIXED")
+                        .font(.system(size: 9, weight: .semibold))
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(Theme.accent.opacity(0.18), in: Capsule())
+                        .foregroundStyle(Theme.accent)
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 2)
+    }
+
+    private var subtitle: String {
+        guard !playlist.isEmpty else { return "Empty" }
+        let noun = playlist.trackCount == 1 ? "track" : "tracks"
+        return "\(playlist.trackCount) \(noun) · \(playlist.formattedTotalDuration)"
     }
 }

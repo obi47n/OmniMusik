@@ -4,7 +4,11 @@
 //
 //  The playlist index.
 //
-//  Every row shows how many tracks and how long, both answerable from stored
+//  A two-column grid rather than a list. Playlists are things you recognise rather
+//  than lines you read, and a grid gives each one a tile with its own identity
+//  instead of a row indistinguishable from its neighbours.
+//
+//  Every tile shows how many tracks and how long, both answerable from stored
 //  snapshots without touching a source, so this screen renders instantly and
 //  offline. Resolution only happens when a playlist is opened.
 //
@@ -25,7 +29,7 @@ struct PlaylistsView: View {
             if store.playlists.isEmpty {
                 emptyState
             } else {
-                list
+                grid
             }
         }
         .navigationTitle("Playlists")
@@ -60,22 +64,35 @@ struct PlaylistsView: View {
         }
     }
 
-    private var list: some View {
-        List {
-            ForEach(store.playlists) { playlist in
-                NavigationLink {
-                    PlaylistDetailView(playlistID: playlist.id)
-                } label: {
-                    PlaylistRow(playlist: playlist)
+    private var grid: some View {
+        ScrollView {
+            LazyVGrid(columns: columns, spacing: 18) {
+                ForEach(store.playlists) { playlist in
+                    NavigationLink {
+                        PlaylistDetailView(playlistID: playlist.id)
+                    } label: {
+                        PlaylistTile(playlist: playlist)
+                    }
+                    .buttonStyle(.plain)
+                    // A grid has no swipe-to-delete, so the destructive action moves
+                    // to a context menu rather than disappearing with the list.
+                    .contextMenu {
+                        Button("Delete", role: .destructive) {
+                            store.delete(id: playlist.id)
+                        }
+                    }
                 }
             }
-            .onDelete { offsets in
-                for index in offsets {
-                    store.delete(id: store.playlists[index].id)
-                }
-            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .padding(.bottom, 24)
         }
-        .listStyle(.plain)
+    }
+
+    /// Two flexible columns rather than an adaptive minimum, because the count is the
+    /// point: two per row is what makes the tiles large enough to read at a glance.
+    private var columns: [GridItem] {
+        [GridItem(.flexible(), spacing: 18), GridItem(.flexible(), spacing: 18)]
     }
 
     private var emptyState: some View {
@@ -141,39 +158,83 @@ struct PlaylistsView: View {
     }
 }
 
-struct PlaylistRow: View {
+/// One playlist as a tile.
+///
+/// Playlists carry no artwork of their own: `PlaylistEntry` stores a title, artist
+/// and duration, deliberately not an expiring cover URL. Rather than showing four
+/// grey squares, each tile gets a gradient derived from its own id -- stable across
+/// launches, distinct between playlists, and honest about being generated rather
+/// than pretending to be album art.
+struct PlaylistTile: View {
     let playlist: Playlist
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(playlist.name)
-                .font(.body)
-                .lineLimit(1)
+        VStack(alignment: .leading, spacing: 10) {
+            cover
 
-            HStack(spacing: 6) {
-                Text(subtitle)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(playlist.name)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
 
-                // The badge only appears when a playlist genuinely mixes sources.
-                // That is the case this whole architecture exists to support, so
-                // it is worth pointing at when it happens.
-                if playlist.isCrossSource {
-                    Text("MIXED")
-                        .font(.caption2.weight(.semibold))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
-                        .background(Theme.accent.opacity(0.18), in: Capsule())
-                        .foregroundStyle(Theme.accent)
+                HStack(spacing: 5) {
+                    Text(subtitle)
+                        .lineLimit(1)
+
+                    if playlist.isCrossSource {
+                        // Only when a playlist genuinely mixes sources -- the case
+                        // this whole architecture exists to support.
+                        Text("MIXED")
+                            .font(.system(size: 9, weight: .semibold))
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(Theme.accent.opacity(0.18), in: Capsule())
+                            .foregroundStyle(Theme.accent)
+                    }
                 }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
             }
-            .font(.caption)
-            .foregroundStyle(.secondary)
         }
-        .padding(.vertical, 2)
+    }
+
+    private var cover: some View {
+        RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
+            .fill(
+                LinearGradient(
+                    colors: [tint.opacity(0.95), tint.opacity(0.45)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .aspectRatio(1, contentMode: .fit)
+            .overlay(alignment: .bottomLeading) {
+                Image(systemName: playlist.isEmpty ? "music.note.list" : "play.fill")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.92))
+                    .padding(12)
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
+                    .strokeBorder(.white.opacity(0.08), lineWidth: 1)
+            }
     }
 
     private var subtitle: String {
         guard !playlist.isEmpty else { return "Empty" }
         let noun = playlist.trackCount == 1 ? "track" : "tracks"
         return "\(playlist.trackCount) \(noun) · \(playlist.formattedTotalDuration)"
+    }
+
+    /// Deterministic from the id, so a playlist keeps its colour across launches and
+    /// devices. Hue only: saturation and brightness stay fixed so no tile arrives
+    /// muddy or fluorescent.
+    private var tint: Color {
+        var hash: UInt64 = 5381
+        for byte in playlist.id.uuidString.utf8 {
+            hash = (hash &* 33) &+ UInt64(byte)
+        }
+        return Color(hue: Double(hash % 360) / 360, saturation: 0.55, brightness: 0.62)
     }
 }

@@ -79,6 +79,15 @@ enum PlaybackError: LocalizedError {
     case notAuthorized
     case sourceMismatch(expected: TrackSource, got: TrackSource)
 
+    /// The source needs its own app woken, and iOS only permits launching another
+    /// app from the foreground. Hit when the queue reaches such a track while the
+    /// screen is locked or OmniMusik is in the background.
+    ///
+    /// Distinct from `engineFailure` because it is not a fault and the right response
+    /// is different: keep the queue moving rather than stopping on an error nobody
+    /// can see.
+    case requiresForeground(TrackSource)
+
     var errorDescription: String? {
         switch self {
         case .fileNotFound(let name):
@@ -91,6 +100,8 @@ enum PlaybackError: LocalizedError {
             "OmniMusik needs permission to access your music library."
         case .sourceMismatch(let expected, let got):
             "Internal routing error: \(expected.displayName) provider received a \(got.displayName) track."
+        case .requiresForeground(let source):
+            "Open OmniMusik to play \(source.displayName) — iOS only lets an app launch another one from the foreground."
         }
     }
 }

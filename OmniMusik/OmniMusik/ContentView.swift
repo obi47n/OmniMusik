@@ -36,6 +36,20 @@ struct ContentView: View {
             NowPlayingView()
         }
         .spotifyHandoffOverlay(host: "root")
+        // Explains a gap the person may have noticed while the phone was locked:
+        // the queue skipped a track because its app could not be woken from the
+        // background. Shown on return, since that is the first moment it can be.
+        .alert(
+            "Skipped a track",
+            isPresented: Binding(
+                get: { coordinator.deferredForegroundSource != nil },
+                set: { if !$0 { coordinator.clearDeferredForegroundSource() } }
+            )
+        ) {
+            Button("OK", role: .cancel) { coordinator.clearDeferredForegroundSource() }
+        } message: {
+            Text("\(coordinator.deferredForegroundSource?.displayName ?? "That service") needs its app opened, and iOS only allows that while OmniMusik is on screen. Notifications are off, so playback continued with the next track rather than stopping with no explanation.")
+        }
         .alert(
             "Playback Problem",
             isPresented: Binding(
