@@ -209,7 +209,13 @@ final class SpotifyPlaybackProvider: NSObject, PlaybackProvider {
             // with no explanation and reads as a glitch. The delay costs nothing
             // against the app launch that follows it.
             onWillWakeSpotify?()
-            try? await Task.sleep(for: .milliseconds(520))
+
+            // Long enough for the transition to render and be read. It was 520ms,
+            // which SwiftUI spent mostly fading the overlay in -- so the switch
+            // often arrived while it was still appearing, and the animation looked
+            // like it fired only sometimes. iOS is about to spend longer than this
+            // launching Spotify anyway.
+            try? await Task.sleep(for: .milliseconds(1100))
 
             let started = await appRemote.authorizeAndPlayURI(uri)
             if !started {

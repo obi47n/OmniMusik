@@ -103,18 +103,21 @@ struct LaunchView: View {
         if reduceMotion {
             // No bouncing and no staged exit: appear, hold briefly, fade.
             settled = true
-            try? await Task.sleep(for: .milliseconds(420))
+            try? await Task.sleep(for: .milliseconds(900))
             leaving = true
             try? await Task.sleep(for: .milliseconds(220))
             onFinished()
             return
         }
 
+        // Deliberately longer than the app needs. The launch screen is the one
+        // moment the product introduces itself, and at a second it was over before
+        // the meter had finished a cycle -- read as a flash rather than as motion.
         animating = true
-        try? await Task.sleep(for: .milliseconds(700))
+        try? await Task.sleep(for: .milliseconds(1250))
 
         settled = true
-        try? await Task.sleep(for: .milliseconds(380))
+        try? await Task.sleep(for: .milliseconds(700))
 
         // Let the content leave before the layer does, so the handover to the app
         // underneath is a continuation rather than a cut.

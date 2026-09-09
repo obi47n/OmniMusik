@@ -101,10 +101,19 @@ struct OmniMusikApp: App {
                     await provider.connectIfPossible()
                 }
                 .onChange(of: scenePhase) { _, phase in
+                    guard phase == .active else {
+                        // Backgrounding means the switch happened and the transition
+                        // has served its purpose. Clearing it here rather than on a
+                        // timer matters: a Task scheduled before the switch is
+                        // suspended along with the app, so the flag could still be
+                        // set on return and the next handoff would find it already
+                        // true -- no state change, no animation.
+                        coordinator.endHandoffTransition()
+                        return
+                    }
                     // SPTAppRemote drops its connection when the app backgrounds.
                     // Re-establishing it on return means the first track someone taps
                     // plays in place rather than bouncing them into Spotify.
-                    guard phase == .active else { return }
                     Task { await spotifyProvider?.connectIfPossible() }
                 }
 
@@ -113,9 +122,10 @@ struct OmniMusikApp: App {
                         .transition(.opacity)
                         .zIndex(2)
                         .task {
-                            // Cleared on a timer rather than on backgrounding: if the
-                            // wake fails, the overlay must still go away.
-                            try? await Task.sleep(for: .milliseconds(1400))
+                            // A backstop only. The normal exit is backgrounding; this
+                            // covers a wake that fails and never switches at all,
+                            // which would otherwise leave the overlay up forever.
+                            try? await Task.sleep(for: .seconds(4))
                             coordinator.endHandoffTransition()
                         }
                 }

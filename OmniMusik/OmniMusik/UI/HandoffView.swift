@@ -55,7 +55,7 @@ struct HandoffView: View {
         }
         .task {
             guard !reduceMotion else { moved = true; return }
-            withAnimation(.smooth(duration: 0.38)) { moved = true }
+            withAnimation(.smooth(duration: 0.3)) { moved = true }
         }
     }
 
@@ -69,7 +69,7 @@ struct HandoffView: View {
                     .scaleEffect(y: moved ? 0.35 : 1, anchor: .center)
                     .opacity(moved ? 0.45 : 1)
                     .animation(
-                        reduceMotion ? nil : .smooth(duration: 0.34).delay(Double(index) * 0.05),
+                        reduceMotion ? nil : .smooth(duration: 0.26).delay(Double(index) * 0.04),
                         value: moved
                     )
             }
