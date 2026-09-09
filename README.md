@@ -3,10 +3,21 @@
 An iOS music client that unifies Apple Music and locally owned audio into a single
 library, queue, and search — with a real-time effects chain for local files.
 
-> **Status:** active development. Local playback, the effects chain, cross-source
-> playlists, universal search, and offline export are implemented. Apple Music is a
-> deliberate stub pending App Service provisioning. See
+> **Status:** active development. iOS local playback, the effects chain, cross-source
+> playlists, universal search, and offline export are implemented; the sync API and
+> web control plane build and pass their tests. Apple Music is a deliberate stub
+> pending App Service provisioning, and nothing is deployed yet. See
 > [What is actually built](#what-is-actually-built).
+
+## Repository layout
+
+| Directory | What it is |
+|---|---|
+| `OmniMusik/` | The iOS app — Swift, SwiftUI, SwiftData, AVAudioEngine |
+| `backend/` | Spring Boot 4 sync API — [README](backend/README.md) |
+| `web/` | React + TypeScript control plane — [README](web/README.md) |
+| `infra/` | Terraform for Cognito, RDS, ECR, App Runner — [README](infra/README.md) |
+| `docs/` | Interview study notes |
 
 ## Why this project is interesting
 
@@ -96,13 +107,19 @@ rejected. A few that shape the code:
 | Cross-source playlists, queue view | Smoke-tested in simulator |
 | Offline render export | Unit-tested |
 | Lock screen, remote commands, interruption handling | Implemented; background audio needs device confirmation |
-| Authentication | Scaffolded — no user pool provisioned yet |
+| Sync API — auth, accounts, playlist CRUD, conflict handling | Builds; 12 integration tests pass against H2 |
+| Web control plane — sign-in, playlist editing, conflict UX | Builds; not yet run against a live API |
+| Terraform for the whole stack | `validate` passes; **never applied** |
+| iOS and web sign-in | Scaffolded — no Cognito user pool provisioned yet |
 | Apple Music | Deliberate stub; blocked on App Service provisioning |
-| Backend, web client | Designed, not built |
 
-Tests: 40 passing — unit coverage over the playlist rules, `AudioEdit` identity and
-Codable round trips, and the renderer's timeline arithmetic, plus UI smoke tests that
-drive each subsystem end to end.
+Tests: 40 on iOS (playlist rules, `AudioEdit` identity and Codable round trips, the
+renderer's timeline arithmetic, plus UI smoke tests driving each subsystem end to
+end) and 12 on the backend (sync semantics, ownership isolation, and the wire format
+the iOS client depends on).
+
+Nothing is deployed. The Terraform has never been applied, no Cognito user pool
+exists, and neither client has ever completed a real sign-in.
 
 ## Requirements
 
@@ -133,7 +150,7 @@ simulator. They are excluded from Release builds.
 
 ## Deferred
 
-Spotify integration · Spring Boot sync backend · React web companion · Android
+Spotify integration · Android
 
 Spotify is deferred rather than rejected: its SDK needs a custom dev client and its
 own OAuth flow to prove the same architectural point the protocols already prove.

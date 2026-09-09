@@ -438,6 +438,7 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
     <li><a href="#engine">The audio engine</a></li>
     <li><a href="#concurrency">Concurrency</a></li>
     <li><a href="#playlists">Cross-source playlists</a></li>
+    <li><a href="#sync">Sync and conflicts</a></li>
     <li><a href="#bugs">Two war stories</a></li>
     <li><a href="#defend">Decisions to defend</a></li>
     <li><a href="#limits">Honest limitations</a></li>
@@ -661,6 +662,48 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
   <p>Two failure modes there are silent rather than loud, which is why both are tested: output length must be <code>sourceFrames / rate</code> or every slowed export is truncated and <em>still plays, just stops early</em>; and a reverb tail must be appended or the file ends on a cut that was never audible. The renderer&rsquo;s graph is a deliberate copy of the player&rsquo;s &mdash; if they drifted, exports would stop sounding like what was auditioned.</p>
 </section>
 
+<section id="sync">
+  <h2>Sync and conflicts</h2>
+  <p class="section-note">The backend's only genuinely interesting problem. Prepare this one properly &mdash; it is the most senior-sounding thing in the project.</p>
+
+  <p>Once a playlist exists on a phone and on the web, two devices editing it is <strong>the normal case, not an edge case</strong>: a set built on the phone is exactly the thing you then reorder in a browser. Last-write-wins would silently discard whichever edit lost, and the person would never learn which.</p>
+
+  <div class="qa">
+    <div class="q">
+      <p class="q-prompt">How are writes reconciled?</p>
+      <p>Optimistic concurrency. Every playlist carries a <code>version</code>; the client sends the version it last read, and a write whose expected version no longer matches is refused with <code>409</code>.</p>
+      <p>The part worth emphasising: <strong>the 409 carries the server&rsquo;s current state in the body</strong>. A bare 409 forces a second round trip to discover what changed and invites the client to retry blindly with the new version &mdash; which is last-write-wins wearing a seatbelt. With the current state attached, the client can show what differs and let a person choose.</p>
+    </div>
+
+    <div class="q">
+      <p class="q-prompt">Why is create-or-update a single PUT under a client-chosen id?</p>
+      <p>Playlists are created offline, on a device that may not see the network for days, so they need stable identity from the moment they exist. A server-generated id would mean rewriting every local reference once the server answers.</p>
+      <p>It also makes the upload <strong>idempotent</strong>. A client that uploaded successfully but lost the response can safely retry &mdash; which is the single most common sync failure, removed by construction rather than by handling.</p>
+    </div>
+
+    <div class="q">
+      <p class="q-prompt">Why does another user's playlist return 404 rather than 403?</p>
+      <p>A 403 confirms the id exists. That turns the endpoint into an oracle for enumerating other people&rsquo;s data, so an unauthorized id is reported as absent &mdash; the same answer as one that never existed.</p>
+    </div>
+
+    <div class="q">
+      <p class="q-prompt">What did the tests actually catch?</p>
+      <p>A real bug. The service built its response from JPA&rsquo;s <code>save()</code>, which returns <em>before</em> the flush that increments <code>@Version</code>. Clients were handed a version that was already stale, so their very next write would have conflicted for no reason. Fixed with <code>saveAndFlush</code>.</p>
+      <p>That is a good answer to &ldquo;what has testing caught for you&rdquo;: it was invisible in single-request manual testing and would have looked like a mysterious sync bug in the field.</p>
+    </div>
+
+    <div class="q">
+      <p class="q-prompt">Anything surprising about the wire format?</p>
+      <p>Swift derives coding keys from property names and encodes string-backed enums by raw value, so <code>sourceID</code> and <code>appleMusic</code> are part of the contract &mdash; renaming either to Java or JavaScript convention would break the phone and nothing else. There is a test asserting the exact strings.</p>
+      <p>Dates are the other trap: Swift&rsquo;s default <code>JSONDecoder</code> reads a <code>Date</code> as seconds since the <strong>2001</strong> Apple epoch, so an ISO-8601 API requires <code>.iso8601</code> on the client or every timestamp silently lands in 2001.</p>
+    </div>
+  </div>
+
+  <h3>Infrastructure, briefly</h3>
+  <p>App Runner rather than ECS Fargate, chosen against a fixed deadline: the container pipeline, private networking and IAM boundaries are all there; the ALB, target groups and task definitions are not. Being able to say when you would switch is the part that matters.</p>
+  <p>The detail worth having ready: an App Runner <strong>VPC connector routes all outbound traffic through the VPC</strong>, so once attached the service can no longer reach Cognito&rsquo;s JWKS endpoint without a NAT gateway &mdash; and token validation then fails as a timeout that looks nothing like a networking problem. One NAT in a single AZ is a deliberate cost tradeoff, with an interface endpoint for <code>cognito-idp</code> as the cheaper alternative.</p>
+</section>
+
 <section id="bugs">
   <h2>Two war stories</h2>
   <p class="section-note">For &ldquo;tell me about a difficult bug.&rdquo; Both are real, and both have a clean diagnostic arc.</p>
@@ -750,7 +793,10 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
     <div class="row"><div class="status blocked">Blocked externally</div><div class="row-body"><strong>MusicKit / Apple Music.</strong> The developer account is too new for the App Service to be enabled. <code>AppleMusicSource</code> is a deliberate stub reporting &ldquo;not connected&rdquo;; the provider slot exists and returns nothing. This is worth mentioning unprompted &mdash; it explains the stub better than the stub does.</div></div>
     <div class="row"><div class="status ok">Smoke-tested</div><div class="row-body"><strong>Cross&#8209;source playlists and the queue view.</strong> Creating a playlist from the library and opening it is driven end to end by a UI test, and the playlist rules have unit coverage.</div></div>
     <div class="row"><div class="status ok">Unit-tested</div><div class="row-body"><strong>Offline render export.</strong> Covered for identity export, rate stretching (a 0.5x export must not be truncated to the source length), trimmed range, empty range rejection, and refusal of Apple Music tracks. Not yet listened to &mdash; the tests assert duration, not that it sounds right.</div></div>
-    <div class="row"><div class="status todo">Planned</div><div class="row-body"><strong>Spring Boot backend, React control plane, AWS deployment, demo materials.</strong> Designed, not written.</div></div>
+    <div class="row"><div class="status ok">Tested, not deployed</div><div class="row-body"><strong>Sync API.</strong> Spring Boot 4 on Java 21. Twelve integration tests pass against H2, covering the conflict paths, ownership isolation, and the exact wire strings the iOS client needs. Never run against Postgres or a real Cognito pool.</div></div>
+    <div class="row"><div class="status warn">Builds, not integrated</div><div class="row-body"><strong>Web control plane.</strong> React + TypeScript, compiles clean. Has never talked to a running API, and no sign-in has ever completed, because no user pool exists.</div></div>
+    <div class="row"><div class="status warn">Validated, never applied</div><div class="row-body"><strong>Terraform.</strong> <code>validate</code> passes and it is formatted. Applying it needs AWS credentials and spends real money. Expect the first apply to surface what validation cannot: RDS engine availability in-region, a globally-taken Cognito domain prefix, App Runner quotas.</div></div>
+    <div class="row"><div class="status todo">Planned</div><div class="row-body"><strong>Deployment and demo materials.</strong></div></div>
   </div>
 
   <div class="callout">

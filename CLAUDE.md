@@ -21,6 +21,24 @@ worth more here than another screen.
 - Swift 5 language mode, SwiftData, Observation (`@Observable`, not
   `ObservableObject`).
 
+## Repository layout
+
+```
+OmniMusik/   iOS app (Swift, SwiftUI, SwiftData, AVAudioEngine)
+backend/     Spring Boot 4 sync API (Java 21, H2 locally, Postgres in prod)
+web/         React + TypeScript control plane (Vite)
+infra/       Terraform: Cognito, RDS, ECR, App Runner
+docs/        Interview study notes
+```
+
+Build commands, since the toolchain here is not discoverable:
+
+- iOS: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcodebuild ...`
+  (`xcode-select` points at CommandLineTools on this machine)
+- Backend: `cd backend && ./mvnw test`
+- Web: `cd web && npm run build`
+- Infra: `terraform -chdir=infra validate` (terraform is not installed globally)
+
 ## Architecture
 
 ```
@@ -79,6 +97,27 @@ merge them.
   from the built plist. That was the cause of playback dying on lock. The partial
   plist sits at SRCROOT, outside the synchronized folder so Xcode does not treat it
   as a resource; `GENERATE_INFOPLIST_FILE` stays `YES` and merges on top of it.
+
+## Cross-component contracts
+
+The wire format is shared by three codebases and two of the couplings are invisible
+until runtime:
+
+- `TrackSource` serializes as `local` / `appleMusic`, and the entry field is
+  `sourceID`. Swift derives coding keys from property names and encodes string-backed
+  enums by raw value, so Java or JavaScript naming conventions break the phone and
+  nothing else. There is a backend test asserting the exact strings.
+- Timestamps are ISO-8601. Swift's default `JSONDecoder` reads a `Date` as seconds
+  since the **2001** Apple epoch, so the iOS client must use `.iso8601` or every date
+  silently lands in 2001.
+- Playlist writes are version-checked. Clients send the version they last read; a
+  mismatch is a 409 carrying the server's current state so the client can merge.
+
+Toolchain notes that cost time to rediscover: Spring Boot 4 uses Jackson 3
+(`tools.jackson`, though annotations stayed on `com.fasterxml`) and moved
+`@AutoConfigureMockMvc` to `org.springframework.boot.webmvc.test.autoconfigure`.
+TypeScript 6 enables `erasableSyntaxOnly`, which rejects constructor parameter
+properties.
 
 ## Conventions
 
