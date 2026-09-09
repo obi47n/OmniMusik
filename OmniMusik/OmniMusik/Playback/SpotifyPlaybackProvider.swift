@@ -33,6 +33,10 @@ final class SpotifyPlaybackProvider: NSObject, PlaybackProvider {
 
     private let accessToken: () async throws -> String
 
+    /// Reports which path `play()` took. Reasoning about this from the outside has
+    /// been wrong twice; this reports what actually happened.
+    var onDiagnostic: ((String) -> Void)?
+
     private lazy var appRemote: SPTAppRemote = {
         let configuration = SPTConfiguration(
             clientID: SpotifyConfiguration.clientID,
@@ -156,6 +160,8 @@ final class SpotifyPlaybackProvider: NSObject, PlaybackProvider {
         // missing rather than the token being old.
         appRemote.connectionParameters.accessToken = try await accessToken()
 
+        let wasConnected = appRemote.isConnected
+
         // Try the quiet path first: if Spotify is running at all, this connects
         // without a foreground switch and playback is driven entirely from here.
         if !appRemote.isConnected {
@@ -163,10 +169,14 @@ final class SpotifyPlaybackProvider: NSObject, PlaybackProvider {
         }
 
         if appRemote.isConnected {
+            onDiagnostic?(wasConnected
+                ? "played in place (connection held)"
+                : "played in place (reconnected)")
             appRemote.playerAPI?.play(uri, callback: nil)
             playing = true
             lastReportedAt = Date()
         } else {
+            onDiagnostic?("woke Spotify — connect() failed, app was not resident")
             // Spotify is not running, so there is nothing to connect to. This wakes
             // it, which does switch apps -- unavoidable, and the only time it should
             // happen. Once connected, subsequent tracks take the path above.
@@ -265,6 +275,7 @@ extension SpotifyPlaybackProvider: SPTAppRemoteDelegate {
 
     nonisolated func appRemote(_ appRemote: SPTAppRemote, didDisconnectWithError error: Error?) {
         MainActor.assumeIsolated {
+            onDiagnostic?("disconnected: \(error?.localizedDescription ?? "no error given")")
             playing = false
             lastReportedAt = nil
             settleConnectionWaiters(false)

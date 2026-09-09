@@ -28,6 +28,16 @@ struct NowPlayingView: View {
                     .shadow(radius: 16, y: 8)
 
                 trackInfo
+
+                #if DEBUG
+                if let note = coordinator.spotifyDiagnostic {
+                    Text("Spotify: \(note)")
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                #endif
+
                 scrubber
                 transportControls
 

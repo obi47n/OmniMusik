@@ -43,6 +43,9 @@ final class PlaybackCoordinator {
     /// token and the coordinator has no business knowing how one is obtained.
     /// Absent until a Spotify connection exists, which is what routing checks.
     private var spotifyProvider: SpotifyPlaybackProvider?
+
+    /// Most recent Spotify handoff note, shown in Now Playing in debug builds.
+    private(set) var spotifyDiagnostic: String?
     private var activeProvider: (any PlaybackProvider)?
 
     /// Saved edits for the tracks in the queue.
@@ -87,6 +90,9 @@ final class PlaybackCoordinator {
         spotifyProvider = provider
         provider?.onTrackFinished = { [weak self] in
             self?.advanceAfterCompletion()
+        }
+        provider?.onDiagnostic = { [weak self] note in
+            self?.spotifyDiagnostic = note
         }
     }
 

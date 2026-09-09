@@ -208,6 +208,43 @@ reason" is a clean line, while "playback is iOS-only except Spotify" invites a
 follow-up with no principled answer. It also needs Premium in the browser. Worth
 revisiting only if the web client's purpose changes from control plane to player.
 
+## A mixed queue cannot cross into Spotify silently
+
+Confirmed on device, after three failed attempts to fix it.
+
+Playing a Spotify track requires the Spotify app to be resident. While local audio
+plays, Spotify is paused and producing no audio, so iOS suspends it. A suspended app
+cannot accept an `SPTAppRemote` connection, so the only remaining route is
+`authorizeAndPlayURI`, which wakes Spotify and brings it to the foreground.
+
+The asymmetry is the tell: Spotify to local is seamless, because local playback needs
+nothing from another process. Local to Spotify is not, because it needs a process iOS
+has already put to sleep.
+
+Three fixes were attempted and none could have worked, which is worth recording so
+they are not attempted again:
+
+- **Warming the connection when a Spotify track is next.** Useless, because
+  suspension happens *during* the local track, after the warm-up.
+- **Holding the connection object open across handoffs.** Real improvement, but
+  holding a connection does not stop the OS suspending the app at the other end.
+- **Relinquishing the audio session on handoff.** A genuine bug, fixed, and unrelated
+  to this one.
+
+We do not control another app's lifecycle. There is no entitlement or background mode
+that keeps a third-party app alive, and the only state that would -- Spotify actively
+playing audio -- is precisely what cannot be true while something else plays.
+
+**Rejected mitigation: keeping Spotify playing silently underneath.** It would work,
+and it means two concurrent audio streams, Spotify reporting itself as playing, and a
+volume the person did not ask for. Fighting the platform for a cosmetic gain.
+
+What remains is honest product design rather than engineering: cross the boundary as
+few times as possible, and explain the switch rather than let it surprise. This is the
+same wall as the effects chain in another guise -- streaming audio lives in someone
+else's process, and everything that follows from that is a constraint rather than a
+bug.
+
 ## Rejected features
 
 - **Stems / source separation.** A machine-learning project wearing a tab.
