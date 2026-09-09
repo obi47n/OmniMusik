@@ -24,15 +24,17 @@ worth more here than another screen.
 ## Architecture
 
 ```
-Domain/     Track, TrackSource, AudioEdit — no framework imports, deliberately
+Domain/     Track, TrackSource, AudioEdit, Playlist — no framework imports
 Playback/   PlaybackProvider protocol + LocalPlaybackProvider (AVAudioEngine)
             PlaybackCoordinator — routes tracks to providers, owns queue
             NowPlayingCenter, AudioSessionObserver
 Library/    MusicSource protocol + LocalMusicSource / AppleMusicSource
-            SwiftData persistence, file-owning storage, import, LibraryStore
+            SwiftData persistence, file-owning storage, import
+            LibraryStore, PlaylistStore, PlaylistEntity
 Search/     SearchService (concurrent fan-out), SearchView
-Studio/     Effects UI, waveform analysis and rendering
-UI/         Library, Now Playing, mini player, Theme
+Studio/     Effects UI, waveform analysis and rendering, OfflineRenderer
+Auth/       AuthProvider interface, Cognito implementation, Keychain store
+UI/         Library, Playlists, Now Playing, Queue, mini player, Theme
 ```
 
 **Two protocols, deliberately separate.** `PlaybackProvider` answers "how is this
@@ -60,6 +62,16 @@ merge them.
   deactivate it and iOS does not hand it back.
 - Effects split into **parametric** (live node mutation) and **structural** (trim,
   requires reschedule). Only trim reschedules, only when bounds actually move.
+- Playlists store `(source, sourceID)` pairs plus a **denormalized snapshot**, not
+  `Track` values and not SwiftData relationships. A relationship would have to point
+  at `LocalTrackEntity`, which would make cross-source playlists impossible; the
+  snapshot is what lets a playlist describe itself when its source cannot answer.
+  Entries are encoded JSON because order is the point and relationships are
+  unordered.
+- The offline renderer's graph must stay **identical** to `LocalPlaybackProvider`'s.
+  If they drift, exports stop sounding like what was auditioned. Output length is
+  `sourceFrames / rate` plus a reverb tail — get it wrong and slowed exports are
+  silently truncated.
 - `UIBackgroundModes` comes from an explicit `OmniMusik/Info.plist`, not from
   `INFOPLIST_KEY_UIBackgroundModes`. Xcode's generated-plist mechanism honors only
   a fixed whitelist of `INFOPLIST_KEY_*` settings and `UIBackgroundModes` is not on
@@ -79,29 +91,27 @@ merge them.
 
 ## State
 
-Done: local library and import, metadata extraction, SwiftData persistence,
-AVAudioEngine playback, the effects chain, the signal-chain Studio with waveform
-rendering, lock screen and remote commands, interruption and route-change handling,
-unified library with source filtering, universal search fan-out.
+Working on device: local library and import, metadata extraction, SwiftData
+persistence, AVAudioEngine playback, the effects chain, the signal-chain Studio.
 
-Smoke-verified on an iOS 18 simulator by `OmniMusikUITests`, five cases passing:
-sample tracks persist and list, tapping a track starts playback and docks the mini
-player, the Studio presents and renders its signal chain (so waveform analysis runs),
-search produces Apple Music's unavailability note (so the fan-out completed and
-failure isolation held), and the account screen reports itself unconfigured.
+Smoke-tested in simulator by `OmniMusikUITests` (7 cases): waveform rendering,
+unified library, search fan-out, cross-source playlists end to end, queue view,
+account screen.
 
-Not done: unit tests (nothing covers the generation counter, trim arithmetic, or
-credential refresh), offline render export, MusicKit integration, Omni playlists
-(cross-source), queue view, backend, web client, README and demo materials.
+Unit-tested by `OmniMusikTests` (33 cases): playlist rules, `AudioEdit` identity and
+Codable round trips, `PlaylistEntry` coding, offline renderer timeline arithmetic.
+The renderer suite is `.serialized` — parallel offline engines sharing one directory
+interfere.
+
+Not done: MusicKit integration (blocked), backend, web client, demo materials.
+Background audio on lock is fixed but needs device confirmation.
 
 When adding UI tests: `accessibilityIdentifier` propagates to every descendant and an
 identifier on a container silently overwrites a more specific one on a child. Keep at
-most one per subtree. The element hierarchy in the `.xcresult` bundle is the fastest
-way to diagnose a query that should match and does not.
-
-## Open bugs
-
-None known.
+most one per subtree. SwiftUI also labels a `Menu` "More" and puts the image
+identifier on the child, so name such controls explicitly. The element hierarchy in
+the `.xcresult` bundle is the fastest way to diagnose a query that should match and
+does not.
 
 ## Interview notes
 
@@ -118,9 +128,11 @@ in an interview, which only works if it is true.
 
 ## Notes
 
-`_to_delete/` holds discards from a sandbox that could not delete files, including a
-`project.pbxproj` backup. Safe to remove.
-
 `SampleAudio/` contains synthesized DEBUG-only fixtures (tagged, untagged,
 artwork-less, unicode) because Save to Files is broken in the iOS 18 simulator.
-They ship in release builds too — strip them before archiving.
+`EXCLUDED_SOURCE_FILE_NAMES = "*.mp3"` on the app target's Release configuration
+keeps them out of release bundles; the UI smoke tests depend on them being present
+in Debug.
+
+Building from the command line needs `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer`
+— `xcode-select` points at CommandLineTools on this machine.

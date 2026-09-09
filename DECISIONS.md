@@ -100,6 +100,52 @@ into ECR, and being able to explain the tradeoff — "managed runtime on purpose
 is when I would move to Fargate" reads as judgment. A half-finished Fargate setup
 reads as time trouble.
 
+## Playlists: identifier pairs with a snapshot, not tracks and not relationships
+
+A playlist must hold a local file and an Apple Music track in one ordered list, but
+those live in different worlds. Local tracks are SwiftData rows; Apple Music tracks
+are not persisted at all, because caching a catalog that changes underneath you means
+serving stale copies of someone else's data.
+
+Considered a SwiftData relationship to `LocalTrackEntity`. Rejected because it would
+quietly restrict playlists to local files -- the exact thing the feature exists to
+avoid -- and because relationships are unordered, so preserving playlist order would
+mean an explicit position column and re-numbering siblings on every move.
+
+Considered storing `Track` values directly. Rejected because a `Track` for a remote
+source is only meaningful while that source can be reached.
+
+So an entry is `(source, sourceID)` plus a denormalized snapshot of title, artist,
+and duration, encoded as JSON. The snapshot is the part worth defending: without it,
+a playlist of Apple Music tracks becomes blank rows the moment the subscription
+lapses. A playlist should be able to describe itself without a server's permission.
+
+The tradeoff, stated plainly: entries are opaque to the query engine, so a future
+"which playlists contain this track" screen needs a scan or a secondary index. That
+is a fair price for ordering and cross-source support.
+
+Duplicates are permitted. A set that opens and closes on the same record is a real
+thing, so each entry carries its own identity and the "add unless present" policy
+lives at the call site rather than buried in the model.
+
+## Export: manual rendering, not AVAssetExportSession
+
+`AVAssetExportSession` can trim and transcode, but it has no way to apply an
+`AVAudioUnitTimePitch` or a reverb node -- the effects are an engine graph, so the
+export has to run that graph. AVAudioEngine's offline manual rendering mode does,
+far faster than real time.
+
+The renderer's graph is deliberately a copy of `LocalPlaybackProvider`'s. That
+duplication is accepted on purpose: if the two drifted, exports would stop sounding
+like what was auditioned, which is the one thing an export must never do. A shared
+graph-builder would be tidier and is the obvious refactor if a third consumer ever
+appears.
+
+Two failure modes here are silent rather than loud, which is why both are tested:
+output length must be `sourceFrames / rate` or every slowed export is truncated and
+still plays, and a reverb tail must be appended or the file ends on a cut that was
+never audible during playback.
+
 ## Studio design: signal chain, built rather than borrowed
 
 An existing audio app's edit screen was used as a starting reference. Its useful
@@ -126,6 +172,10 @@ is the thing worth seeing at a glance.
 
 ## Cuttable if time runs short
 
-Offline render export, and tests. What cannot be cut without the project ceasing to
-be what it claims: Apple Music integration, cross-source playlists, and lock screen
-controls.
+Originally: offline render export, and tests. Both are now done, so neither is
+available to cut.
+
+What remains cuttable: the web client's polish, and the demo video.
+
+What cannot be cut without the project ceasing to be what it claims: Apple Music
+integration, cross-source playlists (done), and lock screen controls (done).
