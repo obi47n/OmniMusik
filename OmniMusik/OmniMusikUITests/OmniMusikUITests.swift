@@ -2,42 +2,121 @@
 //  OmniMusikUITests.swift
 //  OmniMusikUITests
 //
-//  Created by Obi Nnaduruaku on 9/8/26.
+//  Smoke coverage for the subsystems that were written without a compiler
+//  available and had never been run.
+//
+//  These are not exhaustive tests and are not trying to be. They exist to answer
+//  one question per subsystem: does it do anything at all when driven for real?
+//  Compiling proved the types line up; a waveform that renders empty, a fan-out
+//  that never returns, or a Studio that crashes on present would all have built
+//  perfectly clean.
+//
+//  Deliberately asserting on user-visible text rather than internal state. If the
+//  Studio no longer says SIGNAL CHAIN, the interface changed and the test should
+//  be revisited, which is the correct outcome.
 //
 
 import XCTest
 
+@MainActor
 final class OmniMusikUITests: XCTestCase {
 
+    private var app: XCUIApplication!
+
     override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-
-        // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
-
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
-    }
-
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
-    }
-
-    @MainActor
-    func testExample() throws {
-        // UI tests must launch the application that they test.
-        let app = XCUIApplication()
+        app = XCUIApplication()
         app.launch()
-
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
     }
 
-    @MainActor
-    func testLaunchPerformance() throws {
-        if #available(macOS 10.15, iOS 13.0, tvOS 13.0, watchOS 7.0, *) {
-            // This measures how long it takes to launch your application.
-            measure(metrics: [XCTApplicationLaunchMetric()]) {
-                XCUIApplication().launch()
-            }
+    // MARK: - Helpers
+
+    /// Brings the library to a populated state.
+    ///
+    /// Sample loading skips titles already present, so this is safe to run on a
+    /// simulator whose store survived an earlier test.
+    private func populateLibrary() {
+        let loadSamples = app.buttons["Load Sample Tracks"]
+        if loadSamples.waitForExistence(timeout: 5) {
+            loadSamples.tap()
         }
+        XCTAssertTrue(
+            app.cells.firstMatch.waitForExistence(timeout: 15),
+            "Library never showed a track. Sample loading or SwiftData persistence failed."
+        )
+    }
+
+    // MARK: - Library
+
+    func testSampleTracksPopulateTheLibrary() {
+        populateLibrary()
+        XCTAssertGreaterThan(app.cells.count, 1, "Expected several sample tracks, got \(app.cells.count).")
+    }
+
+    // MARK: - Playback
+
+    func testTappingATrackStartsPlaybackAndDocksTheMiniPlayer() {
+        populateLibrary()
+        app.cells.firstMatch.tap()
+
+        XCTAssertTrue(
+            app.buttons["MiniPlayerPlayPause"].waitForExistence(timeout: 15),
+            "Mini player never docked, so the coordinator did not take a current track."
+        )
+    }
+
+    // MARK: - Studio
+
+    func testStudioOpensAndRendersTheSignalChain() {
+        populateLibrary()
+
+        // The Studio is reachable from the row's context menu.
+        app.cells.firstMatch.press(forDuration: 1.2)
+
+        let openInStudio = app.buttons["Open in Studio"]
+        XCTAssertTrue(openInStudio.waitForExistence(timeout: 5), "Context menu did not offer the Studio.")
+        openInStudio.tap()
+
+        // Reaching this point means waveform analysis ran without trapping, which
+        // is the part that had never executed.
+        XCTAssertTrue(
+            app.staticTexts["SIGNAL CHAIN"].waitForExistence(timeout: 20),
+            "Studio did not render. Waveform generation is the most likely culprit."
+        )
+
+        app.buttons["Cancel"].tap()
+    }
+
+    // MARK: - Search
+
+    func testSearchFansOutAndIsolatesTheUnavailableSource() {
+        populateLibrary()
+        app.buttons["Search"].tap()
+
+        let field = app.searchFields["Songs and artists"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5), "Search field never appeared.")
+        field.tap()
+        field.typeText("a")
+
+        // Apple Music is a deliberate stub reporting unavailable. Seeing its note
+        // proves three things at once: the fan-out ran, the unavailable source was
+        // isolated rather than failing the whole search, and the note reached the UI.
+        XCTAssertTrue(
+            app.staticTexts["Apple Music isn't connected yet."].waitForExistence(timeout: 20),
+            "No per-source note appeared. The fan-out did not complete or failure isolation is broken."
+        )
+    }
+
+    // MARK: - Account
+
+    func testAccountTabReportsSignInIsNotConfigured() {
+        app.buttons["Account"].tap()
+
+        // Cognito has no user pool yet, so the honest state is an explanation
+        // rather than a button that cannot work.
+        XCTAssertTrue(
+            app.staticTexts["Sign-in not configured in this build"].waitForExistence(timeout: 10),
+            "Account screen did not report its unconfigured state."
+        )
     }
 }

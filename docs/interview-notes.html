@@ -677,14 +677,15 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
   <h2>Honest limitations</h2>
   <p class="section-note">Prepared answers for &ldquo;what would you do differently.&rdquo; Volunteering these reads as judgment; being caught out by them does not.</p>
 
-  <h3>There are no tests yet</h3>
-  <p>The test targets contain Xcode&rsquo;s boilerplate and nothing else. The honest answer is that this was a deliberate sequencing call under a fixed deadline, not an oversight &mdash; and that the first suite to write is the playlist merge and conflict&#8209;resolution logic, because that is the code where a bug is both likely and invisible. Do not claim coverage that does not exist.</p>
+  <h3>Test coverage is a smoke suite, not a test suite</h3>
+  <p>There are five XCUITest cases covering one question per subsystem: does it do anything at all when driven for real. There are <strong>no unit tests</strong> &mdash; nothing covers the generation counter, the trim arithmetic, or the credential refresh rule, which are the three places a bug would be both likely and invisible.</p>
+  <p>The honest framing is that the smoke suite was written to retire a specific risk &mdash; a large amount of code had been written without a compiler available and had never been executed &mdash; and that unit tests on the audio arithmetic are the next thing to write. Do not describe this as tested.</p>
 
   <h3>Effects will never work on Apple Music</h3>
   <p>Worth stating before being asked. It is a structural property of DRM&#8209;protected playback, not a roadmap item, and the domain model encodes it rather than leaving it as a comment.</p>
 
-  <h3>Some subsystems compile but have not been exercised</h3>
-  <p>A large amount of the app was written without a compiler available and has been verified only to the extent that it builds cleanly. Building is not running. Be precise about which parts have been used on a device and which have not &mdash; the status ledger below is the source of truth.</p>
+  <h3>Simulator is not device</h3>
+  <p>The smoke suite runs on an iOS&nbsp;18 simulator. Audio routing, interruption handling, and background behaviour all differ on real hardware, and the background&#8209;audio fix in particular can only be confirmed on a device with a physical lock button. Be precise about which parts have run on device and which have only run in the simulator &mdash; the status ledger is the source of truth.</p>
 
   <h3>Single-device by design, so far</h3>
   <p>Everything persists locally through SwiftData. Nothing syncs until the backend exists, so &ldquo;how do you handle conflicts&rdquo; is currently a design answer rather than an implemented one. Say so.</p>
@@ -698,7 +699,8 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
     <div class="row"><div class="status ok">Working on device</div><div class="row-body"><strong>Local import and library.</strong> MP3 import, metadata and artwork extraction, SwiftData persistence, file&#8209;owning storage.</div></div>
     <div class="row"><div class="status ok">Working on device</div><div class="row-body"><strong>AVAudioEngine playback.</strong> Play, pause, seek, next, previous, auto&#8209;advance, delete.</div></div>
     <div class="row"><div class="status ok">Working on device</div><div class="row-body"><strong>Studio effects.</strong> Speed, pitch, reverb, 3&#8209;band EQ, trim &mdash; non&#8209;destructive, applied at render time, persisted per track.</div></div>
-    <div class="row"><div class="status warn">Builds, not yet run</div><div class="row-body"><strong>Studio redesign, waveform analysis and rendering, unified library with source filtering, universal search fan&#8209;out.</strong> Compiles clean for simulator and device with no warnings. Runtime behaviour is unverified.</div></div>
+    <div class="row"><div class="status ok">Smoke-tested</div><div class="row-body"><strong>Studio and waveform rendering, unified library, universal search fan&#8209;out.</strong> Driven for real by a five&#8209;case XCUITest suite on an iOS&nbsp;18 simulator, all passing: sample tracks persist and list, tapping a track starts playback and docks the mini player, the Studio presents and renders its signal chain (which means waveform analysis runs without trapping), and a search produces Apple Music&rsquo;s unavailability note (which means the fan&#8209;out completed and failure isolation held).</div></div>
+    <div class="row"><div class="status warn">Not yet verified</div><div class="row-body"><strong>Correctness, as distinct from execution.</strong> The smoke suite proves these subsystems run and reach the screen. It does not prove the waveform matches the audio, that effects sound right, or that trim boundaries land on the correct samples. Say &ldquo;smoke&#8209;tested,&rdquo; not &ldquo;tested.&rdquo;</div></div>
     <div class="row"><div class="status warn">Fixed, needs device check</div><div class="row-body"><strong>Background audio on lock.</strong> The built <code>Info.plist</code> now carries <code>UIBackgroundModes</code> as an array containing <code>audio</code>, confirmed in both simulator and device builds. Confirming the audio actually keeps playing is a device test.</div></div>
     <div class="row"><div class="status warn">Scaffolded only</div><div class="row-body"><strong>Authentication.</strong> The interface, Cognito implementation, Keychain store, and account screen exist and compile. No user pool has been created yet, so nothing has ever signed in. The configuration ships as placeholders and the UI says so.</div></div>
     <div class="row"><div class="status blocked">Blocked externally</div><div class="row-body"><strong>MusicKit / Apple Music.</strong> The developer account is too new for the App Service to be enabled. <code>AppleMusicSource</code> is a deliberate stub reporting &ldquo;not connected&rdquo;; the provider slot exists and returns nothing. This is worth mentioning unprompted &mdash; it explains the stub better than the stub does.</div></div>
@@ -740,6 +742,10 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
     <div class="rapid-item">
       <p class="rapid-q">Why does the domain layer import nothing?</p>
       <p class="rapid-a">So it stays portable and testable, and so the eventual web client can share the model conceptually even though it shares no code. It is also what keeps framework assumptions from leaking into the types every layer touches.</p>
+    </div>
+    <div class="rapid-item">
+      <p class="rapid-q">Anything surprising about testing SwiftUI?</p>
+      <p class="rapid-a"><code>accessibilityIdentifier</code> propagates to every descendant, and an identifier on an enclosing container silently overwrites a more specific one on a child. A mini&#8209;player test failed against a button that was on screen and working, because the container&rsquo;s identifier had replaced the button&rsquo;s. The element hierarchy captured in the <code>.xcresult</code> bundle is what showed it &mdash; worth knowing that XCTest records that automatically on failure.</p>
     </div>
     <div class="rapid-item">
       <p class="rapid-q">Why App Runner rather than ECS Fargate?</p>

@@ -84,9 +84,20 @@ AVAudioEngine playback, the effects chain, the signal-chain Studio with waveform
 rendering, lock screen and remote commands, interruption and route-change handling,
 unified library with source filtering, universal search fan-out.
 
-Not done: offline render export, MusicKit integration, Omni playlists (cross-source),
-queue view, tests, README and demo materials. Backend and web app are a later phase —
-Sign in with Apple is the chosen auth, behind a thin interface.
+Smoke-verified on an iOS 18 simulator by `OmniMusikUITests`, five cases passing:
+sample tracks persist and list, tapping a track starts playback and docks the mini
+player, the Studio presents and renders its signal chain (so waveform analysis runs),
+search produces Apple Music's unavailability note (so the fan-out completed and
+failure isolation held), and the account screen reports itself unconfigured.
+
+Not done: unit tests (nothing covers the generation counter, trim arithmetic, or
+credential refresh), offline render export, MusicKit integration, Omni playlists
+(cross-source), queue view, backend, web client, README and demo materials.
+
+When adding UI tests: `accessibilityIdentifier` propagates to every descendant and an
+identifier on a container silently overwrites a more specific one on a child. Keep at
+most one per subtree. The element hierarchy in the `.xcresult` bundle is the fastest
+way to diagnose a query that should match and does not.
 
 ## Open bugs
 

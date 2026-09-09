@@ -34,6 +34,11 @@ struct MiniPlayerView: View {
                             .frame(width: 32, height: 32)
                     }
                     .buttonStyle(.plain)
+                    // The UI test's handle for "the player is docked". Note this
+                    // must stay the only identifier in the mini player subtree:
+                    // SwiftUI propagates accessibilityIdentifier to descendants,
+                    // so one on the enclosing stack silently overwrites this.
+                    .accessibilityIdentifier("MiniPlayerPlayPause")
 
                     Button {
                         Task { await coordinator.next() }
