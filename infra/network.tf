@@ -62,32 +62,8 @@ resource "aws_route_table_association" "private" {
 
 # MARK: Security groups
 #
-# The database accepts traffic only from the App Runner connector's group, by group
-# reference rather than by CIDR, so the rule stays correct if subnets are renumbered.
-
-resource "aws_security_group" "app_runner" {
-  name        = "${var.project}-apprunner"
-  description = "Egress for the App Runner VPC connector"
-  vpc_id      = aws_vpc.main.id
-
-  egress {
-    description = "Postgres to the database"
-    from_port   = 5432
-    to_port     = 5432
-    protocol    = "tcp"
-    cidr_blocks = [aws_vpc.main.cidr_block]
-  }
-
-  egress {
-    description = "HTTPS to the Cognito interface endpoint"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = [aws_vpc.main.cidr_block]
-  }
-
-  tags = { Name = "${var.project}-apprunner" }
-}
+# The database accepts traffic only from the API tasks' group, by group reference
+# rather than by CIDR, so the rule stays correct if subnets are renumbered.
 
 resource "aws_security_group" "database" {
   name        = "${var.project}-database"
@@ -95,70 +71,12 @@ resource "aws_security_group" "database" {
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    description     = "Postgres from App Runner only"
+    description     = "Postgres from the API tasks only"
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
-    security_groups = [aws_security_group.app_runner.id]
+    security_groups = [aws_security_group.api_tasks.id]
   }
 
   tags = { Name = "${var.project}-database" }
-}
-
-resource "aws_security_group" "vpc_endpoints" {
-  name        = "${var.project}-endpoints"
-  description = "HTTPS to interface endpoints from the application"
-  vpc_id      = aws_vpc.main.id
-
-  ingress {
-    description     = "HTTPS from App Runner"
-    from_port       = 443
-    to_port         = 443
-    protocol        = "tcp"
-    security_groups = [aws_security_group.app_runner.id]
-  }
-
-  tags = { Name = "${var.project}-endpoints" }
-}
-
-# The one route out of the VPC: Cognito's JWKS, so the resource server can verify
-# token signatures.
-
-# Interface endpoints are not offered in every availability zone, and the set differs
-# per service and per region -- cognito-idp in us-east-1 covers b, c and d but not a.
-# Hardcoding a subnet index fails with "does not support the availability zone of the
-# subnet", which names the subnet rather than the reason. Asking the service which
-# AZs it supports and intersecting with our own subnets is both self-correcting and a
-# clearer statement of the actual constraint.
-data "aws_vpc_endpoint_service" "cognito_idp" {
-  service_name = "com.amazonaws.${var.region}.cognito-idp"
-}
-
-locals {
-  endpoint_capable_subnets = [
-    for subnet in aws_subnet.private : subnet.id
-    if contains(data.aws_vpc_endpoint_service.cognito_idp.availability_zones, subnet.availability_zone)
-  ]
-}
-
-# One subnet rather than all of them: an interface endpoint bills per ENI per hour, so
-# additional AZs double the cost for redundancy this deployment does not need. Private
-# DNS still resolves from the other subnet, at a fraction of a cent in cross-AZ
-# transfer. Production would use every capable subnet.
-resource "aws_vpc_endpoint" "cognito_idp" {
-  vpc_id              = aws_vpc.main.id
-  service_name        = data.aws_vpc_endpoint_service.cognito_idp.service_name
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = slice(local.endpoint_capable_subnets, 0, 1)
-  security_group_ids  = [aws_security_group.vpc_endpoints.id]
-  private_dns_enabled = true
-
-  lifecycle {
-    precondition {
-      condition     = length(local.endpoint_capable_subnets) > 0
-      error_message = "No private subnet sits in an AZ that offers the cognito-idp endpoint. Move the subnets into ${join(", ", data.aws_vpc_endpoint_service.cognito_idp.availability_zones)}."
-    }
-  }
-
-  tags = { Name = "${var.project}-cognito-idp" }
 }

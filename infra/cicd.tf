@@ -120,10 +120,44 @@ data "aws_iam_policy_document" "github_deploy" {
 
   # Deliberately absent: any ability to change infrastructure. CI publishes
   # artifacts; Terraform changes the stack, and that stays a deliberate local action.
+  # Rolling out the API is one update call, but the script that makes it looks every
+  # input up by name first, so the role needs to *read* the things it names. All
+  # read-only except the update itself and PassRole -- and PassRole is scoped to the
+  # three ECS roles, because a role that can pass any role can become any role.
   statement {
-    sid       = "TriggerApiDeployment"
-    actions   = ["apprunner:StartDeployment"]
-    resources = [aws_apprunner_service.api.arn]
+    sid = "RollOutApi"
+    actions = [
+      "ecs:UpdateExpressGatewayService",
+      "ecs:DescribeExpressGatewayService",
+      "ecs:ListServices",
+      "ecs:RegisterTaskDefinition",
+    ]
+    resources = ["*"] # Express services and task definitions do not scope cleanly yet
+  }
+
+  statement {
+    sid     = "PassEcsRoles"
+    actions = ["iam:PassRole"]
+    resources = [
+      aws_iam_role.ecs_execution.arn,
+      aws_iam_role.ecs_task.arn,
+      aws_iam_role.ecs_infrastructure.arn,
+    ]
+  }
+
+  statement {
+    sid = "ResolveDeployInputsByName"
+    actions = [
+      "iam:GetRole",
+      "ec2:DescribeSecurityGroups",
+      "ec2:DescribeSubnets",
+      "ecr:DescribeRepositories",
+      "rds:DescribeDBInstances",
+      "secretsmanager:ListSecrets",
+      "cognito-idp:ListUserPools",
+      "cloudfront:ListDistributions",
+    ]
+    resources = ["*"] # Describe/List actions are not resource-scoped
   }
 }
 

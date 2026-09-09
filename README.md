@@ -5,8 +5,8 @@ library, queue, and search — with a real-time effects chain for local files.
 
 > **Status:** active development. iOS local playback, the effects chain, cross-source
 > playlists, universal search, and offline export are implemented; the sync API and
-> web control plane build and pass their tests. Apple Music is a deliberate stub
-> pending App Service provisioning, and nothing is deployed yet. See
+> web control plane are deployed on AWS. Apple Music is a deliberate stub pending
+> App Service provisioning. See
 > [What is actually built](#what-is-actually-built).
 
 ## Repository layout
@@ -16,7 +16,7 @@ library, queue, and search — with a real-time effects chain for local files.
 | `OmniMusik/` | The iOS app — Swift, SwiftUI, SwiftData, AVAudioEngine |
 | `backend/` | Spring Boot 4 sync API — [README](backend/README.md) |
 | `web/` | React + TypeScript control plane — [README](web/README.md) |
-| `infra/` | Terraform for Cognito, RDS, ECR, App Runner — [README](infra/README.md) |
+| `infra/` | Terraform for Cognito, RDS, ECR, ECS, CloudFront — [README](infra/README.md) |
 | `docs/` | Interview study notes |
 
 ## Why this project is interesting
@@ -107,10 +107,10 @@ rejected. A few that shape the code:
 | Cross-source playlists, queue view | Smoke-tested in simulator |
 | Offline render export | Unit-tested |
 | Lock screen, remote commands, interruption handling | Implemented; background audio needs device confirmation |
-| Sync API — auth, accounts, playlist CRUD, conflict handling | 12 integration tests pass; runs locally against the live pool. Not deployed — App Runner needs an image in ECR |
-| Web control plane — sign-in, playlist editing, conflict UX | Builds; not yet run against a live API |
-| iOS sync client — decision table, API client, conflict surfacing | Unit-tested; never run against a live service |
-| Terraform for the whole stack | **Applied** — 31 of 32 resources live |
+| Sync API — auth, accounts, playlist CRUD, conflict handling | **Deployed** on ECS Express Mode; 17 integration tests pass; health, auth boundary and CORS verified against the live endpoint |
+| Web control plane — sign-in, playlist editing, conflict UX | **Deployed** to CloudFront, pointed at the live API |
+| iOS sync client — decision table, API client, conflict surfacing | Unit-tested; syncs automatically against the deployed API |
+| Terraform for the whole stack | **Applied** — everything except the ECS Express service itself, which has no Terraform resource and is one script |
 | iOS and web sign-in | Configured against a live Cognito pool; OAuth flow verified in a browser |
 | Apple Music | Deliberate stub; blocked on App Service provisioning |
 
@@ -123,11 +123,10 @@ the wire format the iOS client depends on).
 The iOS UI suite runs serially by design — the shared scheme sets
 `parallelizable="NO"`, because parallel simulator clones made it flaky.
 
-Partially deployed. The infrastructure is applied and Cognito is live, so both
-clients can sign in for real. The API still runs only locally: App Runner is
-`CREATE_FAILED` because no image has been pushed to ECR, which needs either CI (the
-repo has no remote yet) or Docker locally. A playlist has therefore never round-tripped
-through a deployed API.
+Deployed. The API runs on ECS Express Mode behind a managed load balancer with TLS,
+the web client is on CloudFront, and both clients talk to the live API. App Runner
+was the original target; AWS closed it to new services and the move is recorded in
+`DECISIONS.md`.
 
 ## Requirements
 

@@ -1,0 +1,782 @@
+<title>OmniMusik Field Guide</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    /* Taken from the app's own Theme.swift, so the page and the product read as
+       one thing. Neutrals carry a slight violet bias rather than sitting at pure
+       grey. */
+    --ground: #faf9fc;
+    --surface: #ffffff;
+    --raised: #f3f1f8;
+    --line: #e4e0ec;
+    --ink: #1a1820;
+    --ink-2: #56515f;
+    --ink-3: #857f92;
+    --accent: #6d28d9;
+    --accent-soft: #f1e9fe;
+    --warn: #b45309;
+    --warn-soft: #fdf3e3;
+
+    --display: "Archivo", system-ui, -apple-system, sans-serif;
+    --body: "Public Sans", system-ui, -apple-system, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0e0e10;
+      --surface: #1a1a1e;
+      --raised: #232329;
+      --line: #2e2e36;
+      --ink: #ebebeb;
+      --ink-2: #a5a2ad;
+      --ink-3: #6f6b78;
+      --accent: #b57bff;
+      --accent-soft: #241b33;
+      --warn: #e0a35c;
+      --warn-soft: #2a2015;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0e0e10;
+    --surface: #1a1a1e;
+    --raised: #232329;
+    --line: #2e2e36;
+    --ink: #ebebeb;
+    --ink-2: #a5a2ad;
+    --ink-3: #6f6b78;
+    --accent: #b57bff;
+    --accent-soft: #241b33;
+    --warn: #e0a35c;
+    --warn-soft: #2a2015;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16.5px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 0 22px 96px;
+  }
+
+  /* ---------- Masthead ---------- */
+
+  header.masthead {
+    padding: 56px 0 30px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 38px;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+
+  h1 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: clamp(34px, 6vw, 46px);
+    line-height: 1.06;
+    letter-spacing: -0.022em;
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    font-size: 18px;
+    color: var(--ink-2);
+    margin: 0;
+    max-width: 60ch;
+  }
+
+  /* ---------- Contents ---------- */
+
+  nav.contents {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-bottom: 46px;
+  }
+
+  nav.contents a {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    text-decoration: none;
+    color: var(--ink-2);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 5px 12px;
+    background: var(--surface);
+  }
+
+  nav.contents a:hover,
+  nav.contents a:focus-visible {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  /* ---------- Sections ---------- */
+
+  section { margin-bottom: 52px; scroll-margin-top: 24px; }
+
+  h2 {
+    font-family: var(--display);
+    font-weight: 650;
+    font-size: 25px;
+    letter-spacing: -0.015em;
+    line-height: 1.2;
+    margin: 0 0 6px;
+    text-wrap: balance;
+  }
+
+  h3 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 17.5px;
+    letter-spacing: -0.008em;
+    margin: 30px 0 6px;
+  }
+
+  p { margin: 0 0 15px; max-width: 68ch; }
+
+  /* The question this section answers. The document is organised by what you get
+     asked, not by how the code is laid out, so the question is the heading's
+     companion rather than a decorative label. */
+  .asked {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--ink-3);
+    margin: 0 0 18px;
+    padding-left: 13px;
+    border-left: 2px solid var(--accent);
+    max-width: 68ch;
+  }
+
+  strong { font-weight: 600; color: var(--ink); }
+  em { font-style: italic; color: var(--ink-2); }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: var(--raised);
+    padding: 1.5px 5px;
+    border-radius: 4px;
+  }
+
+  ul { margin: 0 0 15px; padding-left: 20px; max-width: 68ch; }
+  li { margin-bottom: 7px; }
+
+  /* ---------- Comparison tables ---------- */
+
+  .scroller { overflow-x: auto; margin: 0 0 18px; }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 460px;
+    font-size: 14.5px;
+  }
+
+  th, td {
+    text-align: left;
+    padding: 9px 14px 9px 0;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+
+  th {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: 11.5px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  td:first-child { color: var(--ink-2); white-space: nowrap; padding-right: 22px; }
+
+  /* ---------- The answer box ---------- */
+
+  .answer {
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 9px 9px 0;
+    padding: 14px 17px;
+    margin: 0 0 18px;
+  }
+
+  .answer .label {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 5px;
+  }
+
+  .answer p { margin: 0; }
+  .answer p + p { margin-top: 10px; }
+
+  .caution {
+    background: var(--warn-soft);
+    border-left-color: var(--warn);
+  }
+
+  .caution .label { color: var(--warn); }
+
+  /* ---------- Flow ---------- */
+
+  .flow {
+    font-family: var(--mono);
+    font-size: 13px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 15px 17px;
+    margin: 0 0 18px;
+    overflow-x: auto;
+    color: var(--ink-2);
+    line-height: 1.85;
+    white-space: pre;
+  }
+
+  /* ---------- Q&A ---------- */
+
+  .qa { border-top: 1px solid var(--line); padding-top: 18px; margin-top: 22px; }
+  .qa:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+
+  .q {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 16.5px;
+    margin: 0 0 7px;
+    color: var(--ink);
+  }
+
+  /* ---------- Status ---------- */
+
+  .status-row {
+    display: flex;
+    gap: 13px;
+    align-items: baseline;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 15px;
+  }
+
+  .pill {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 92px;
+    text-align: center;
+  }
+
+  .pill.real { background: var(--accent-soft); color: var(--accent); }
+  .pill.part { background: var(--warn-soft); color: var(--warn); }
+  .pill.no { background: var(--raised); color: var(--ink-3); }
+
+  footer {
+    margin-top: 56px;
+    padding-top: 22px;
+    border-top: 1px solid var(--line);
+    color: var(--ink-3);
+    font-size: 14px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <div class="eyebrow">Interview study · plain version</div>
+  <h1>OmniMusik Field Guide</h1>
+  <p class="standfirst">
+    The whole project in about ten minutes: what it does, the one problem that makes
+    it hard, and the answers to the questions you will actually be asked.
+  </p>
+</header>
+
+<nav class="contents">
+  <a href="#what">What it is</a>
+  <a href="#hard">The hard part</a>
+  <a href="#protocols">Two protocols</a>
+  <a href="#play">Playing a song</a>
+  <a href="#playlists">Playlists</a>
+  <a href="#sync">Sync</a>
+  <a href="#wall">The Spotify wall</a>
+  <a href="#stack">The stack</a>
+  <a href="#questions">Five questions</a>
+  <a href="#status">What is real</a>
+</nav>
+
+<section id="what">
+  <h2>What it is</h2>
+  <p class="asked">"Tell me about this project."</p>
+
+  <p>
+    An iOS app that puts three music sources into one library, one queue, one search
+    box, and one set of playlists: <strong>MP3s you own</strong>, <strong>Apple
+    Music</strong>, and <strong>Spotify</strong>. A playlist can mix all three.
+    There is also a real-time effects chain — speed, pitch, reverb, EQ, trim — but
+    only for your own files, and that limit is the most interesting thing in the
+    project rather than a shortcoming.
+  </p>
+
+  <p>
+    Around it: a Spring Boot API that syncs playlists between devices, a React web
+    client for editing them from a desktop, and Terraform for the AWS it runs on.
+  </p>
+
+  <div class="answer">
+    <span class="label">One-sentence version</span>
+    <p>
+      Three music sources that have almost nothing in common, hidden behind one
+      interface that does not pretend they are the same.
+    </p>
+  </div>
+</section>
+
+<section id="hard">
+  <h2>The hard part</h2>
+  <p class="asked">"What made this technically difficult?"</p>
+
+  <p>
+    A local MP3 and an Apple Music track look identical in a list. Underneath, they
+    are not variations on one system — they are two incompatible ones, and Spotify
+    is a third.
+  </p>
+
+  <div class="scroller">
+    <table>
+      <thead>
+        <tr><th></th><th>Your MP3</th><th>Apple Music</th><th>Spotify</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Who plays it</td>
+          <td>Us, <code>AVAudioEngine</code></td>
+          <td>A system player</td>
+          <td>The Spotify app</td>
+        </tr>
+        <tr>
+          <td>Can we read the audio?</td>
+          <td>Yes, every sample</td>
+          <td>No — DRM</td>
+          <td>No — another process</td>
+        </tr>
+        <tr>
+          <td>Effects possible?</td>
+          <td>Yes</td>
+          <td>Never</td>
+          <td>Never</td>
+        </tr>
+        <tr>
+          <td>Where the audio lives</td>
+          <td>Our process</td>
+          <td>Someone else's</td>
+          <td>Someone else's</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>
+    Everything awkward in the project comes from one line of that table: <strong>for
+    two of the three sources, the audio is not ours.</strong> We can ask for it to be
+    played. We cannot touch it.
+  </p>
+
+  <div class="answer">
+    <span class="label">Say this</span>
+    <p>
+      "Effects are local-only, and that is structural, not a to-do. Streaming audio is
+      decoded in a process I do not control, so there is no point at which I could
+      apply a filter. The model encodes that as a property of the source rather than
+      leaving it as a comment."
+    </p>
+  </div>
+</section>
+
+<section id="protocols">
+  <h2>Two protocols, kept apart</h2>
+  <p class="asked">"Walk me through your architecture."</p>
+
+  <p>This is the centre of the whole design. There are two questions, and they are not the same question:</p>
+
+  <ul>
+    <li><strong><code>PlaybackProvider</code></strong> — <em>how</em> is this played?</li>
+    <li><strong><code>MusicSource</code></strong> — <em>where</em> did this track come from?</li>
+  </ul>
+
+  <p>
+    The obvious move is to merge them into one "Service" type. That is wrong, and
+    knowing why is the answer to the question:
+  </p>
+
+  <div class="answer">
+    <span class="label">Why they stay separate</span>
+    <p>
+      They do not line up one-to-one. If your Apple Music subscription lapses you can
+      still <em>browse</em> the catalogue but not <em>play</em> it — browsable, not
+      playable. And a provider can still play a track its source no longer lists.
+    </p>
+    <p>
+      Merge them and you get one interface that has to lie about at least one of
+      those states.
+    </p>
+  </div>
+
+  <p>
+    The payoff was real rather than theoretical. Adding Spotify as a third source
+    touched no existing source and no existing provider — it was two new files
+    implementing two existing protocols. That turns "I designed for extensibility"
+    into "I extended it", which is a much better sentence in an interview.
+  </p>
+
+  <h3>The rest of the layout</h3>
+  <div class="flow">Domain/     Track, Playlist, AudioEdit — no framework imports at all
+Playback/   PlaybackProvider + the coordinator that owns the queue
+Library/    MusicSource + local / Apple Music / Spotify, SwiftData
+Search/     one query fanned out to every source at once
+Studio/     the effects UI and the offline export
+UI/         library, playlists, now playing, mini player</div>
+
+  <p>
+    <code>Domain/</code> importing no frameworks is deliberate: those types are pure
+    Swift, so they can be tested without a simulator, and they are what ports to
+    another platform.
+  </p>
+</section>
+
+<section id="play">
+  <h2>What happens when you tap a song</h2>
+  <p class="asked">"Walk me through a request." (The mobile version of that question.)</p>
+
+  <div class="flow">tap a row
+  → coordinator looks at track.source
+  → picks the matching provider
+  → stops whatever was playing
+  → loads and plays
+  → publishes title, art and position to the lock screen</div>
+
+  <p>
+    The coordinator is the only object that knows more than one provider exists. Views
+    never choose a player, and providers never know about each other.
+  </p>
+
+  <h3>Three details worth remembering</h3>
+
+  <p>
+    <strong>Seeking uses a generation counter.</strong> When you seek, the engine
+    stops and re-schedules from the new position. The catch: the "finished playing"
+    callback <em>also</em> fires when audio is cancelled — so every seek looked like
+    the track ending, and the app skipped to the next song. A counter bumped on each
+    seek makes stale callbacks identify themselves and get ignored.
+  </p>
+
+  <p>
+    <strong>Lock screen position is published on transitions only, never on a
+    timer.</strong> iOS extrapolates the position itself from elapsed time and a rate
+    you give it. Publish on a timer as well and the two fight, and the lock screen
+    drifts away from what you hear.
+  </p>
+
+  <p>
+    <strong>Trimmed tracks report trim-relative time.</strong> Trim a song to start at
+    0:30 and it reports 0:00 at its first audible sample. The UI never sees the file's
+    real timeline.
+  </p>
+</section>
+
+<section id="playlists">
+  <h2>Playlists</h2>
+  <p class="asked">"How did you model that?"</p>
+
+  <p>
+    A playlist has to hold an MP3, an Apple Music track and a Spotify track in one
+    ordered list. Two obvious approaches both fail:
+  </p>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Approach</th><th>Why not</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Database relationship</td>
+          <td>It can only point at local tracks, so playlists become local-only — the exact thing the feature exists to avoid. Relationships are also unordered.</td>
+        </tr>
+        <tr>
+          <td>Store the track objects</td>
+          <td>A streaming track is only meaningful while that service answers. Caching someone else's catalogue serves stale copies of their data.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>What it actually stores, per entry:</p>
+
+  <ul>
+    <li>the <strong>source</strong> and that source's <strong>id</strong> — enough to find the track again anywhere;</li>
+    <li>a <strong>snapshot</strong> of title, artist and duration.</li>
+  </ul>
+
+  <div class="answer">
+    <span class="label">The snapshot is the part to defend</span>
+    <p>
+      Without it, a playlist of Apple Music tracks becomes a list of blank rows the
+      moment the subscription lapses or the network drops. A playlist should be able
+      to describe itself without a server's permission.
+    </p>
+  </div>
+
+  <p>
+    <strong>The cost, stated honestly:</strong> entries are stored as one JSON
+    document, so the database cannot answer "which playlists contain this track"
+    without scanning. That is a fair price for ordering and cross-source support, and
+    naming the cost is what makes the answer sound like judgement rather than
+    enthusiasm.
+  </p>
+</section>
+
+<section id="sync">
+  <h2>Sync, and why it is not just "save to the server"</h2>
+  <p class="asked">"How do you handle the same data on two devices?"</p>
+
+  <p>Three pieces, each solving one problem:</p>
+
+  <h3>1. A dirty flag</h3>
+  <p>
+    Every edited playlist row is marked as having unsynced changes. That flag is in
+    the database, so it survives a crash, a force-quit and a flat battery. The sync
+    itself is scheduled — two seconds after you stop editing, when the app returns to
+    the foreground, and when it leaves the screen — but nothing depends on that
+    timing. A missed sync <em>delays</em> an edit; it cannot lose one, because the
+    queue is the database.
+  </p>
+
+  <h3>2. Version numbers</h3>
+  <p>
+    Every playlist has a version. The client sends the version it last read; if the
+    server has moved on it refuses the write and returns its own copy. Two devices
+    cannot silently overwrite each other.
+  </p>
+  <p>
+    When both sides changed, the app <strong>reports a conflict and does
+    nothing</strong>. Silently picking a winner is how someone loses an evening's work
+    without ever being told.
+  </p>
+
+  <h3>3. A server epoch</h3>
+  <p>
+    The subtle one, found in production. "The server does not have this playlist, and
+    I last synced it at version 7" normally means it was deleted elsewhere — so the
+    client deletes its copy. Correct, <em>as long as the absence really is a
+    deletion.</em>
+  </p>
+  <p>
+    Against a database that was replaced or restarted, that same absence means those
+    version numbers were never that server's — and honouring it destroys playlists
+    nobody deleted. So the server publishes one random value that changes when its
+    history does. A client seeing an unfamiliar value re-uploads instead of deleting.
+  </p>
+
+  <div class="answer">
+    <span class="label">The line to remember</span>
+    <p>
+      "A version number only means something inside the history that issued it."
+    </p>
+  </div>
+</section>
+
+<section id="wall">
+  <h2>The Spotify wall</h2>
+  <p class="asked">"Tell me about a mistake." — this is your best answer.</p>
+
+  <p>
+    <strong>The symptom:</strong> playing an MP3 and skipping to a Spotify track threw
+    you out of the app into Spotify. Going the other way was seamless.
+  </p>
+
+  <p>
+    <strong>What I did wrong:</strong> I shipped three confident fixes without taking
+    a single measurement. None could ever have worked. The asymmetry was the clue and
+    I talked past it three times.
+  </p>
+
+  <p>
+    <strong>What settled it:</strong> a twenty-line logger writing to a file on the
+    phone. It showed the connection failing <em>before</em> the app switch, every
+    time — which is what a suspended process looks like from the outside.
+  </p>
+
+  <div class="answer caution">
+    <span class="label">The real cause</span>
+    <p>
+      Spotify audio plays in Spotify's process. While your MP3 plays, Spotify makes no
+      sound, so iOS suspends it. A suspended app cannot accept a connection, and the
+      only way to wake it is to launch it — which iOS permits only from the
+      foreground.
+    </p>
+    <p>
+      There is no entitlement that keeps another app alive. This is a platform
+      constraint, not a bug.
+    </p>
+  </div>
+
+  <p>
+    <strong>What shipped instead of a fix:</strong> a transition screen so the switch
+    looks intentional; and from the lock screen, where waking another app is not
+    permitted at all, the queue skips to the next track it can play and posts a silent
+    notification saying what it passed over. Stopping the music and asking you to
+    unlock was built first and rejected on use — the person not looking at their phone
+    is exactly the one who cannot act on the request.
+  </p>
+
+  <div class="answer">
+    <span class="label">The lesson, in one sentence</span>
+    <p>
+      Reasoning about another process's lifecycle from inside your own is guessing,
+      however good the guess sounds — and the logger that would have saved three
+      attempts cost twenty minutes.
+    </p>
+  </div>
+</section>
+
+<section id="stack">
+  <h2>The rest of the stack, briefly</h2>
+  <p class="asked">"Is this just an iOS app?"</p>
+
+  <div class="scroller">
+    <table>
+      <thead><tr><th>Piece</th><th>What and why</th></tr></thead>
+      <tbody>
+        <tr><td>API</td><td>Spring Boot, Java 21, Postgres. Playlist sync, accounts, conflict handling.</td></tr>
+        <tr><td>Web</td><td>React + TypeScript. A <em>control plane</em>, not a player — browsers cannot play any of these sources, and the UI says so instead of showing a dead play button.</td></tr>
+        <tr><td>Auth</td><td>Cognito, with OAuth2 + PKCE from both clients. No AWS SDK on the phone — it is two HTTP calls, and the same flow runs on web.</td></tr>
+        <tr><td>Infra</td><td>Terraform: Cognito, RDS, ECR, ECS, CloudFront. The API runs on ECS Express Mode behind a managed load balancer.</td></tr>
+        <tr><td>CI</td><td>GitHub Actions, federated into AWS by OIDC — <strong>no AWS key is stored anywhere</strong>, so there is nothing to leak.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>The cost decision worth telling</h3>
+  <p>
+    Containers that need to pull an image and reach the internet normally sit in a
+    private network behind a NAT gateway — about $32/month. Instead, the API tasks run
+    in public subnets with public addresses and a security group that admits only the
+    load balancer. Addressable, but not reachable. The database stays private.
+  </p>
+  <p>
+    The saving is not the point. The reasoning is: <em>enumerate what genuinely needs
+    to leave the network, then buy only that, instead of reaching for the
+    general-purpose default.</em>
+  </p>
+</section>
+
+<section id="questions">
+  <h2>Five questions you will get</h2>
+  <p class="asked">Read this section last, the night before.</p>
+
+  <div class="qa">
+    <p class="q">Why not React Native, so you get Android for free?</p>
+    <p>
+      Apple Music has no playback SDK on Android, so "cross-platform" was never going
+      to deliver real Apple Music playback there. And the effects chain — the most
+      interesting part — would have meant bridging native audio anyway. Going native
+      removed the bridge.
+    </p>
+  </div>
+
+  <div class="qa">
+    <p class="q">Why can't the effects work on streaming?</p>
+    <p>
+      Effects are an audio graph applied to samples. Streaming audio is decrypted and
+      decoded inside another process that hands out no samples — only "play", "pause",
+      "seek". There is no point in the pipeline where a filter could sit. It is a
+      property of the source, and the code says so.
+    </p>
+  </div>
+
+  <div class="qa">
+    <p class="q">Why ECS Express Mode instead of full ECS or Lambda?</p>
+    <p>
+      Full ECS means hand-wiring a network, a load balancer and task definitions —
+      days that do not buy proportional signal with two clients still to build.
+      Lambda was rejected because Spring Boot cold starts there are genuinely bad
+      without extra build complexity. I picked App Runner first for exactly this
+      reason; AWS then closed it to new services, and Express Mode is the same
+      bargain on ECS. The move cost an afternoon and a network change. The signal is
+      the infrastructure being in Terraform, and being able to say: managed runtime
+      on purpose, here is what it cost when the platform moved, and here is when I
+      would go further.
+    </p>
+  </div>
+
+  <div class="qa">
+    <p class="q">What would you do differently?</p>
+    <p>
+      Measure before fixing. The Spotify handoff cost three wrong fixes because I
+      reasoned from the outside instead of instrumenting. And I would add database
+      migrations from the first deploy rather than the second — the production config
+      validated the schema and nothing created it, so the service crash-looped against
+      an empty database until I added Flyway — and then the deploy target itself
+      disappeared under me when AWS closed App Runner, which is its own lesson about
+      not treating a managed service as permanent.
+    </p>
+  </div>
+
+  <div class="qa">
+    <p class="q">What is not finished?</p>
+    <p>
+      Apple Music playback is stubbed — the developer account is too new for the
+      service to be enabled, so that source reports itself unavailable rather than
+      pretending. The web client cannot play audio and does not offer to. Say both
+      plainly; being precise about what is real is worth more than claiming more.
+    </p>
+  </div>
+</section>
+
+<section id="status">
+  <h2>What is actually real</h2>
+  <p class="asked">Never overclaim. This is the list to be accurate from.</p>
+
+  <div class="status-row"><span class="pill real">On device</span><span>Local library and import, playback, the effects chain, the Studio, lock screen controls, cross-source playlists, Spotify browsing and playback</span></div>
+  <div class="status-row"><span class="pill real">On device</span><span>Automatic playlist sync between phone and web</span></div>
+  <div class="status-row"><span class="pill real">Tested</span><span>74 unit + 12 UI tests on iOS, 17 on the backend</span></div>
+  <div class="status-row"><span class="pill real">Deployed</span><span>The whole stack on AWS: the API on ECS Express Mode with TLS, the web client on CloudFront, both signed in against a live Cognito pool</span></div>
+  <div class="status-row"><span class="pill no">Stubbed</span><span>Apple Music playback, blocked on account provisioning</span></div>
+  <div class="status-row"><span class="pill no">Not built</span><span>Android, and audio playback in the browser</span></div>
+
+  <footer>
+    The long version — full reasoning, rejected alternatives, and the deeper audio and
+    concurrency detail — is in the main interview notes and in
+    <code>DECISIONS.md</code>. This page is the map; those are the territory.
+  </footer>
+</section>
+
+</div>

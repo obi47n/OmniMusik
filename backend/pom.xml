@@ -28,6 +28,9 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+		<!-- Overridden on the command line for a real registry; the default keeps
+		     `mvn jib:build` from pushing somewhere unintended by accident. -->
+		<image.repository>omnimusik-api</image.repository>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -64,6 +67,31 @@
 			<artifactId>h2</artifactId>
 			<scope>runtime</scope>
 		</dependency>
+		<!--
+			Owns the production schema. `ddl-auto=validate` describes what the schema
+			must be; something has to actually create it, and letting Hibernate do
+			that is the thing validate exists to prevent.
+		-->
+		<!--
+			Spring Boot 4 splits autoconfiguration into one module per technology -
+			spring-boot-jdbc, spring-boot-data-jpa, and this. flyway-core on its own
+			puts the library on the classpath with nothing to start it, which fails
+			silently: no migration runs, no error is logged, and the first sign is
+			Hibernate refusing to validate a schema nothing created.
+		-->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-flyway</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-core</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-database-postgresql</artifactId>
+		</dependency>
+
 		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
@@ -106,6 +134,56 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+
+			<!--
+				Builds and pushes the container image without a Docker daemon.
+
+				`docker build` needs a daemon, and there is not one on every machine
+				that might need to ship this - there was not one on the machine that
+				first deployed it. Jib assembles the layers itself and pushes them
+				straight to the registry, so the image build has no dependency beyond
+				Maven and network access.
+
+				It also gets the layering right by construction: dependencies,
+				resources and classes go in separate layers, so a one-line source
+				change re-pushes kilobytes rather than the whole jar. That is what the
+				Dockerfile's stage ordering was reaching for by hand.
+			-->
+			<plugin>
+				<groupId>com.google.cloud.tools</groupId>
+				<artifactId>jib-maven-plugin</artifactId>
+				<version>3.4.4</version>
+				<configuration>
+					<from>
+						<!-- Same runtime the Dockerfile used. A moving tag, which is
+						     the accepted cost here: pinning the digest would make the
+						     build reproducible but would also freeze the JRE's
+						     security updates until somebody remembered to move it. -->
+						<image>eclipse-temurin:21-jre</image>
+					</from>
+					<to>
+						<image>${image.repository}</image>
+						<tags>
+							<tag>latest</tag>
+						</tags>
+					</to>
+					<container>
+						<ports>
+							<port>8080</port>
+						</ports>
+						<!-- App Runner runs the container as given, so dropping root
+						     is ours to do. Matches the Dockerfile this replaced. -->
+						<user>1000:1000</user>
+						<jvmFlags>
+							<!-- Container-aware heap sizing. Without this the JVM can
+							     size itself against the host's memory rather than the
+							     container limit and get killed under load. -->
+							<jvmFlag>-XX:MaxRAMPercentage=75</jvmFlag>
+							<jvmFlag>-XX:+UseSerialGC</jvmFlag>
+						</jvmFlags>
+					</container>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>

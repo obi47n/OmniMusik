@@ -34,18 +34,6 @@ variable "db_allocated_storage" {
   default     = 20
 }
 
-variable "app_runner_cpu" {
-  description = "App Runner vCPU allocation."
-  type        = string
-  default     = "0.25 vCPU"
-}
-
-variable "app_runner_memory" {
-  description = "App Runner memory allocation."
-  type        = string
-  default     = "0.5 GB"
-}
-
 variable "container_image_tag" {
   description = "Tag in ECR that App Runner should deploy."
   type        = string

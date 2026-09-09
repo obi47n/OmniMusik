@@ -27,7 +27,7 @@ worth more here than another screen.
 OmniMusik/   iOS app (Swift, SwiftUI, SwiftData, AVAudioEngine)
 backend/     Spring Boot 4 sync API (Java 21, H2 locally, Postgres in prod)
 web/         React + TypeScript control plane (Vite)
-infra/       Terraform: Cognito, RDS, ECR, App Runner
+infra/       Terraform: Cognito, RDS, ECR, ECS (Express Mode), CloudFront
 docs/        Interview study notes
 ```
 
@@ -38,7 +38,11 @@ Build commands, since the toolchain here is not discoverable:
   disables parallel testing on purpose -- see below.
 - Backend: `cd backend && ./mvnw test`
 - Web: `cd web && npm run build`
-- Infra: `terraform -chdir=infra validate` (terraform is not installed globally)
+- Infra: `terraform -chdir=infra validate` (terraform is at `~/.local/bin`). Terraform
+  cannot read `aws login` credentials; give it a config whose `credential_process`
+  shells out to `aws configure export-credentials --format process`.
+- API rollout: `IMAGE_TAG=<sha> ./scripts/deploy-api.sh` after `./mvnw compile jib:build`.
+  The ECS Express service has no Terraform resource; the script owns it.
 
 ## Architecture
 
@@ -174,11 +178,11 @@ sync decision table, source connection states, and the queue-advance rule.
 The renderer suite is `.serialized` — parallel offline engines sharing one directory
 interfere.
 
-Backend, web client and Terraform all exist and pass their own checks, but nothing
-is deployed: no Cognito pool has been created, so neither client has ever completed a
-real sign-in and the sync client has never talked to a running service.
+Backend, web client and Terraform are deployed: the API on ECS Express Mode, the web
+client on CloudFront, both against a live Cognito pool. Playlists sync automatically
+between phone and web through the deployed API.
 
-Not done: MusicKit integration (blocked), deployment, demo materials. Background audio
+Not done: MusicKit integration (blocked), demo materials. Background audio
 on lock is fixed but needs device confirmation.
 
 When adding UI tests: `accessibilityIdentifier` propagates to every descendant and an

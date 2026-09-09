@@ -724,9 +724,9 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
   <p>Two of the tests are property-based rather than case-based: across the whole input space, no combination may ever pull or delete while unsynced local edits exist. That way a later edit to the table cannot quietly break the guarantee the feature exists to provide.</p>
 
   <h3>Infrastructure, briefly</h3>
-  <p>App Runner rather than ECS Fargate, chosen against a fixed deadline: the container pipeline, private networking and IAM boundaries are all there; the ALB, target groups and task definitions are not. Being able to say when you would switch is the part that matters.</p>
-  <p>The detail worth having ready: an App Runner <strong>VPC connector routes all outbound traffic through the VPC</strong>, so once attached the service cannot reach Cognito&rsquo;s JWKS endpoint by default &mdash; and token validation then fails as a timeout that looks nothing like a networking problem.</p>
-  <p>The reference answer is a NAT gateway. This stack does not have one. The API has exactly <em>one</em> destination outside the VPC, so a single interface endpoint for <code>cognito-idp</code> serves it at roughly a quarter of the cost, and the VPC has no public subnets or internet gateway at all. That is a better answer than the reference architecture for this workload, and the reasoning &mdash; enumerate what actually needs to leave, then buy only that &mdash; generalises further than the specific saving does.</p>
+  <p>ECS Express Mode, after App Runner. App Runner was the original choice against a fixed deadline &mdash; a managed runtime that takes an image and a port, over hand-wiring an ALB, target groups and task definitions. AWS then closed App Runner to new services, and this account could not create one. Express Mode is the same bargain on ECS, and the reasoning carried over intact. Being able to say when you would move to full Fargate is still the part that matters.</p>
+  <p>The detail worth having ready: Terraform has <strong>no resource for an Express service</strong>. Everything the service depends on is in state; the service itself is one idempotent script that looks its inputs up by name and needs no state, which is exactly what lets CI run it.</p>
+  <p>There is still no NAT gateway. The API tasks run in public subnets with public addresses and a security group that admits only the load balancer &mdash; addressable, not reachable. That is what lets them pull an image and reach Cognito without $32/month of NAT in front of private subnets. Enumerate what genuinely needs to leave the network, then buy only that.</p>
 </section>
 
 <section id="deploying">
@@ -743,9 +743,9 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
     </div>
 
     <div class="q">
-      <p class="q-prompt">App Runner cannot start from a tag that does not exist</p>
-      <p>The service went <code>CREATE_FAILED</code> because ECR was empty &mdash; it pointed at <code>:latest</code> and nothing had been pushed. Terraform expressed no dependency between &ldquo;repository exists&rdquo; and &ldquo;image exists in it,&rdquo; because there isn&rsquo;t one it can see: the image comes from a build pipeline, not from Terraform.</p>
-      <p>An honest ordering problem in the design rather than a bug in the config, and the kind of thing that only shows up on a first apply.</p>
+      <p class="q-prompt">The service crash-looped against an empty database</p>
+      <p>Production validates the schema (<code>ddl-auto=validate</code>) and nothing had created it, so the first container died on <code>missing table [app_user]</code>, restarted, and died again until the platform gave up. The config file&rsquo;s own comment had said &ldquo;a real deployment adds Flyway.&rdquo; This was the real deployment.</p>
+      <p>Adding Flyway was not enough either: Spring Boot 4 splits autoconfiguration per technology, so <code>flyway-core</code> alone put the library on the classpath with nothing to start it &mdash; no migration, no error. <code>spring-boot-flyway</code> was the missing module, and this time it was verified locally before it was pushed.</p>
     </div>
 
     <div class="q">
@@ -765,7 +765,7 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
   <p><strong>CI holds no AWS key.</strong> GitHub Actions federates through OIDC into a role only this repository can assume, and that role can push images, publish the web client and trigger a rollout &mdash; deliberately not change infrastructure. A leaked static key is the usual way a personal AWS account gets drained; there isn&rsquo;t one to leak.</p>
 
   <h3>And one about cost, which is a design question</h3>
-  <p>The reference answer to &ldquo;App Runner needs to reach Cognito through a VPC connector&rdquo; is a NAT gateway: a general-purpose route to the entire internet, at ~$32/month, bought to serve exactly one hostname. Enumerating what genuinely needs to leave the VPC gave a single interface endpoint at ~$7, no public subnets and no internet gateway. Idle cost went from ~$60/month to ~$25.</p>
+  <p>The reference answer for tasks that need outbound access is a NAT gateway: a general-purpose route to the entire internet at ~$32/month. Enumerating what the API genuinely needs &mdash; pull one image, write logs, fetch one set of signing keys &mdash; gives tasks in public subnets with a security group that admits only the load balancer, at no hourly cost. The load balancer itself is the real line item now, and it is one App Runner used to bundle.</p>
   <p>For a project with no users the cheaper move is still not running it: apply before a demo, destroy after, about $1/day. The Terraform and the CI are what a reviewer reads.</p>
 </section>
 
@@ -869,10 +869,10 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
     <div class="row"><div class="status blocked">Blocked externally</div><div class="row-body"><strong>MusicKit / Apple Music.</strong> The developer account is too new for the App Service to be enabled. <code>AppleMusicSource</code> is a deliberate stub reporting &ldquo;not connected&rdquo;; the provider slot exists and returns nothing. This is worth mentioning unprompted &mdash; it explains the stub better than the stub does.</div></div>
     <div class="row"><div class="status ok">Smoke-tested</div><div class="row-body"><strong>Cross&#8209;source playlists and the queue view.</strong> Creating a playlist from the library and opening it is driven end to end by a UI test, and the playlist rules have unit coverage.</div></div>
     <div class="row"><div class="status ok">Unit-tested</div><div class="row-body"><strong>Offline render export.</strong> Covered for identity export, rate stretching (a 0.5x export must not be truncated to the source length), trimmed range, empty range rejection, and refusal of Apple Music tracks. Not yet listened to &mdash; the tests assert duration, not that it sounds right.</div></div>
-    <div class="row"><div class="status warn">Runs locally, not deployed</div><div class="row-body"><strong>Sync API.</strong> Twelve integration tests pass against H2. Runs locally against the live pool: health UP, 401 without a token, correct CORS. <strong>Not yet deployed</strong> &mdash; App Runner is CREATE_FAILED because ECR holds no image, so it has never run against Postgres.</div></div>
-    <div class="row"><div class="status warn">Runs locally</div><div class="row-body"><strong>Web control plane.</strong> Configured against the live pool and reaching a local backend. The full playlist round trip through a deployed API has still never happened.</div></div>
-    <div class="row"><div class="status ok">Applied</div><div class="row-body"><strong>Terraform.</strong> 31 of 32 resources live in a real account: VPC, RDS Postgres, Cognito, ECR, S3 and CloudFront. Only App Runner is outstanding, and for a reason that is not a config defect. Two failures on the first apply are written up above.</div></div>
-    <div class="row"><div class="status todo">Planned</div><div class="row-body"><strong>Deployment and demo materials.</strong></div></div>
+    <div class="row"><div class="status ok">Deployed</div><div class="row-body"><strong>Sync API.</strong> Seventeen integration tests pass. Running on ECS Express Mode against RDS Postgres, behind a managed load balancer with TLS: health UP, 401 without a token, CORS admitting the CloudFront origin, all verified against the live endpoint. Flyway owns the schema.</div></div>
+    <div class="row"><div class="status ok">Deployed</div><div class="row-body"><strong>Web control plane.</strong> On CloudFront, signed in against the live pool, editing playlists through the deployed API.</div></div>
+    <div class="row"><div class="status ok">Applied</div><div class="row-body"><strong>Terraform.</strong> The whole stack is live: VPC, RDS Postgres, Cognito, ECR, ECS, S3 and CloudFront. The one thing not in state is the Express service itself, because the provider has no resource for it; it is a script that reads its inputs by name.</div></div>
+    <div class="row"><div class="status todo">Planned</div><div class="row-body"><strong>Demo materials.</strong></div></div>
   </div>
 
   <div class="callout">
@@ -920,8 +920,8 @@ footer p { max-width: 68ch; margin: 0 0 6px; }
       <p class="rapid-a">By finding the causes rather than adding sleeps. Three of them: existence and hittability are different states, and a tap during the animation window lands nowhere <em>silently</em>, so the test fails later at whatever the tap should have produced; a context menu swallows a tap that arrives while it is settling, leaving the menu up; and xcodebuild spreads the suite across parallel simulator clones, which widens both windows. Waiting for hittability, retrying the menu tap, and a shared scheme with <code>parallelizable="NO"</code> made it deterministic &mdash; a different test had been failing on each run while every one passed in isolation.</p>
     </div>
     <div class="rapid-item">
-      <p class="rapid-q">Why App Runner rather than ECS Fargate?</p>
-      <p class="rapid-a">A deliberate call against a fixed deadline. Fargate means hand&#8209;wiring a VPC, load balancer, target groups, and task definitions &mdash; days that do not buy proportional signal on a portfolio project. The infrastructure is still defined in Terraform with a container pipeline. Being able to say when you would move to Fargate is the part that matters.</p>
+      <p class="rapid-q">Why ECS Express Mode rather than ECS Fargate proper?</p>
+      <p class="rapid-a">Same reason App Runner was the first choice: a managed runtime that takes an image and a port, against hand&#8209;wiring a load balancer, target groups and task definitions on a fixed deadline. App Runner then closed to new services and Express Mode is the same bargain on ECS &mdash; the move cost one afternoon and a network change, and the infrastructure is still Terraform with a container pipeline. Knowing when you would move to full Fargate is the part that matters.</p>
     </div>
   </div>
 </section>

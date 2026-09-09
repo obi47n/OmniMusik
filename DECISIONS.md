@@ -85,7 +85,12 @@ Signing in is optional. Local library, effects, and playback work with no accoun
 an account buys cross-device playlists and the web client. Gating owned files behind
 a login would be a worse product and a worse interview answer.
 
-## Hosting: App Runner over Fargate, deliberately
+## Hosting: App Runner over Fargate, deliberately (SUPERSEDED 2026-09-09)
+
+> Overtaken by the platform. AWS closed App Runner to new services on 2026-04-30,
+> and this account can no longer create one. See "Hosting: ECS Express Mode" below.
+> Kept because the reasoning -- managed runtime on purpose, and knowing when you
+> would move -- is exactly what carried over.
 
 Chosen against a three-week budget with two clients still to build.
 
@@ -120,6 +125,57 @@ it RDS.
 The Lambda rejection above is also weaker than when it was written: Java SnapStart has
 closed much of the cold-start gap that made it a non-starter. It stays rejected on
 effort — a rewrite of a working, tested service — rather than on latency.
+
+## Hosting: ECS Express Mode, because App Runner closed
+
+Not a choice so much as a consequence. AWS stopped accepting new App Runner
+services on 2026-04-30; the existing one here was `CREATE_FAILED` for an unrelated
+reason (below), replacing it means creating one, and the console's create button is
+disabled on this account. The API had to run somewhere else.
+
+AWS points at ECS Express Mode, and it is the same bargain App Runner offered: hand
+over an image and a port, and the platform runs the load balancer, target groups,
+TLS, and scaling. What it does not offer is a Terraform resource -- the AWS provider
+has none at any version -- so the split is deliberate: everything the service depends
+on (cluster, roles, subnets, security groups, log group) is Terraform and in state,
+and the service itself is one idempotent script, `scripts/deploy-api.sh`, that looks
+every input up by name. The script needs no Terraform state, which is what lets CI
+run it.
+
+**What it cost: the network.** App Runner supplied its own public endpoint and
+reached into the VPC through a connector, so the VPC had no public subnets and no
+internet gateway -- a property the earlier entry was proud of. Express Mode puts an
+Application Load Balancer *in* the VPC, and a load balancer the internet can reach
+has to live in a subnet the internet can reach. So the VPC gained an internet gateway
+and two public subnets.
+
+The tasks run in those public subnets with public addresses, rather than in the
+private ones behind a NAT gateway. That is the same reasoning as the NAT decision,
+applied again: a NAT gateway is $32/month to let tasks pull an image and write logs,
+and an address plus a security group that admits only the load balancer costs
+nothing. The tasks are addressable but not reachable. The Cognito interface endpoint
+is gone with the NAT-free design it served -- tasks with a route to the internet
+reach Cognito directly, and $7/month for a private path to a public endpoint no
+longer buys anything.
+
+**Two things found only by deploying.** The production profile validates the schema
+(`ddl-auto=validate`) and nothing created it, so the first container crash-looped on
+`missing table [app_user]` until Flyway and a hand-written V1 migration existed --
+the config file's own comment had predicted this. And Spring Boot 4 splits
+autoconfiguration into one module per technology, so `flyway-core` alone put Flyway
+on the classpath with nothing to start it: no migration, no error, and the first sign
+was Hibernate refusing a schema nothing had built. `spring-boot-flyway` is the
+missing piece.
+
+**Jib instead of a Dockerfile.** There is no container runtime on the machine that
+first deployed this, and there does not need to be: Jib builds the layers and pushes
+them straight to ECR from Maven. It also layers dependencies, resources and classes
+separately by construction, which is what the Dockerfile's stage ordering had been
+reaching for by hand. One image-build path, used locally and in CI.
+
+**The destroy-when-idle posture survives**, with one change: it now applies to
+everything. There is nothing left that cannot be recreated -- which was the quiet
+risk with App Runner once it stopped accepting new services.
 
 ## Playlists: identifier pairs with a snapshot, not tracks and not relationships
 

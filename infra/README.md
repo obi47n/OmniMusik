@@ -22,38 +22,32 @@ terraform output api_url                 # -> VITE_API_BASE_URL
 
 | Resource | Why |
 |---|---|
-| VPC, 2 private subnets, 1 interface endpoint | App Runner's VPC connector routes all egress through the VPC |
+| VPC, 2 private subnets, 2 public subnets, internet gateway | Database in private; load balancer and API tasks in public, no NAT |
 | Cognito user pool, hosted UI domain, public app client | One client for both iOS and web; PKCE, no secret |
 | Sign in with Apple identity provider | Optional, off by default — see below |
 | RDS Postgres in private subnets | Reachable only from the app's security group |
 | Secrets Manager entry | Generated password, injected at container start |
 | ECR repository with a lifecycle policy | Ten most recent images |
-| App Runner service, VPC connector, two IAM roles | The service itself |
+| ECS cluster, three IAM roles, task security group, log group | Everything the Express service depends on; the service itself is `scripts/deploy-api.sh` |
 | S3 bucket + CloudFront with OAC | The web client; private bucket, only CloudFront can read it |
 | GitHub OIDC provider + deploy role | CI publishes artifacts with no stored AWS key |
 
 ## Decisions worth knowing
 
-**App Runner rather than ECS Fargate.** Chosen against a fixed deadline. Fargate means
-hand-wiring an ALB, target groups, task definitions and autoscaling — days that do not
-buy proportional signal here. The container pipeline, private networking and IAM
-boundaries are all still present; the orchestration boilerplate is not. It would
-change with sustained traffic, sidecars, or a need for fine-grained deployment
-control, and this VPC would carry over unchanged.
+**ECS Express Mode, after App Runner closed.** App Runner was the original choice and
+the reasoning still holds: a managed runtime that takes an image and a port, chosen
+over hand-wiring an ALB, target groups and task definitions. AWS stopped accepting
+new App Runner services in April 2026 and this account cannot create one, so the API
+runs on ECS Express Mode -- the same bargain, on ECS. Terraform has no resource for
+an Express service, so the service is one idempotent script that looks its inputs
+up by name; everything it depends on is here.
 
-**There is no NAT gateway, deliberately.** A VPC connector routes *all* of the
-service's outbound traffic through the VPC, so once attached the service cannot reach
-Cognito's JWKS endpoint by default — token validation starts timing out in a way that
-looks nothing like a networking problem. The reference answer is a NAT gateway at
-~$32/month. But the API has exactly one destination outside the VPC, `cognito-idp`, so
-a single interface endpoint serves it for ~$7. Paying four times as much for
-general-purpose internet reachability that nothing uses is a default worth
-questioning.
-
-Consequently there are no public subnets and no internet gateway — nothing lives in
-them once the NAT is gone. The endpoint sits in one subnet rather than two, since an
-interface endpoint bills per ENI per hour and private DNS still resolves from the
-other AZ for a fraction of a cent in cross-AZ transfer.
+**There is still no NAT gateway, deliberately.** The API tasks run in public subnets
+with public addresses and a security group that admits only the load balancer. That
+is what lets them pull an image, write logs and fetch Cognito's signing keys without
+a $32/month NAT gateway in front of private subnets. Addressable, not reachable. The
+database stays private. The interface endpoint the earlier design used for Cognito is
+gone: a task with a route to the internet reaches Cognito directly.
 
 **Sign in with Apple is optional and off by default.** It needs a Services ID, team ID,
 key ID and .p8 key, and the stack has to be applyable without them. Cognito's own email
@@ -91,13 +85,13 @@ Rough monthly, us-east-1, idle:
 
 | Item | Approx |
 |---|---|
-| Interface endpoint (`cognito-idp`, 1 AZ) | ~$7 |
 | RDS db.t4g.micro, 20 GB gp3 | $12-15 |
-| App Runner 0.25 vCPU / 0.5 GB | $5-25 depending on active time |
+| Fargate task, 0.5 vCPU / 1 GB, one always on | ~$15 |
+| Application Load Balancer (managed by Express Mode) | ~$16 |
 | CloudFront + S3 at portfolio traffic | Cents |
 
-Call it **~$25/month** left running, down from ~$60 before the NAT gateway was
-replaced.
+Call it **~$45/month** left running. The load balancer is the new line item: App
+Runner bundled one in; Express Mode bills it separately.
 
 For a portfolio the cheaper move is not to leave it running at all: `terraform apply`
 before a demo and `terraform destroy` after costs roughly $1/day. Budget 10-15 minutes
@@ -108,8 +102,6 @@ covered outright — worth checking, since AWS has reworked the free-tier model.
 
 ## Caveat
 
-`terraform validate` passes and the configuration is formatted, but this has **never
-been applied** — that needs AWS credentials and spends real money. Expect the first
-apply to surface things validation cannot catch: RDS engine version availability in
-the chosen region, the Cognito domain prefix already being taken globally, and
-App Runner's own service quotas.
+The Express service is not in Terraform state. `terraform destroy` removes everything
+it depends on and will fail on the security group the service still uses; delete the
+service first with `aws ecs delete-express-gateway-service`.

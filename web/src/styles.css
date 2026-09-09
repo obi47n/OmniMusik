@@ -114,7 +114,12 @@ li.card {
   gap: 14px;
 }
 
-.card-main { min-width: 0; }
+/* Fills the row, so the title starts at the left edge.
+   Without `flex: 1` this shrinks to its content, and `space-between` on the row then
+   parks it midway between the drag handle and the buttons -- which reads as centred
+   text. It only appeared when the handle turned the row into three flex children;
+   with two, shrinking to content still left it against the left edge. */
+.card-main { flex: 1; min-width: 0; }
 .card-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-sub { font-size: 13px; color: var(--text-2); display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
 
@@ -146,6 +151,15 @@ li.card {
 .center { text-align: center; padding: 72px 20px; }
 .center h1 { margin-bottom: 10px; }
 .center p { color: var(--text-2); max-width: 44ch; margin: 0 auto 22px; }
+
+/* The same empty and error states, left-aligned.
+   Centring belongs to the sign-in page, which is a landing page with one thing on
+   it. Inside a playlist it fights everything around it: the header, the rows and the
+   controls all start at the same left edge, and a centred block in the middle of
+   them reads as a different page rather than as this one having nothing in it yet. */
+.pane { text-align: left; padding: 56px 0; }
+.pane h1 { margin: 0 0 10px; font-size: 20px; }
+.pane p { color: var(--text-2); max-width: 52ch; margin: 0 0 22px; }
 
 .unplayable .card-title { color: var(--text-3); }
 

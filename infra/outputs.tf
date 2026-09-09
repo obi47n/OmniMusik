@@ -18,11 +18,6 @@ output "cognito_issuer_uri" {
   value       = "https://cognito-idp.${var.region}.amazonaws.com/${aws_cognito_user_pool.main.id}"
 }
 
-output "api_url" {
-  description = "Public URL of the service. Goes into VITE_API_BASE_URL."
-  value       = "https://${aws_apprunner_service.api.service_url}"
-}
-
 output "ecr_repository_url" {
   description = "Push the API image here; App Runner redeploys on a new :latest."
   value       = aws_ecr_repository.api.repository_url

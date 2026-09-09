@@ -10,11 +10,12 @@ import Foundation
 
 enum APIConfiguration {
 
-    /// Terraform output `api_url`. Not a secret.
+    /// The deployed API. Not a secret.
     ///
-    /// Still a placeholder because App Runner has not started: it points at an ECR
-    /// tag that does not exist yet, so there is no deployed URL to put here.
-    static let baseURLString = "REPLACE_ME"
+    /// An ECS Express Mode endpoint, which comes with TLS and a stable hostname. It
+    /// is printed by scripts/deploy-api.sh rather than by Terraform, because the
+    /// service is the one piece of infrastructure Terraform cannot express.
+    static let baseURLString = "https://om-4dfe457f79a84726a4058ed47871dbbd.ecs.us-east-1.on.aws"
 
     /// A backend running on the development machine.
     ///

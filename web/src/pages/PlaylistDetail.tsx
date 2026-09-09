@@ -128,7 +128,7 @@ export function PlaylistDetail() {
 
   if (error && !playlist) {
     return (
-      <div className="center">
+      <div className="pane">
         <h1>Playlist unavailable</h1>
         <p>{error}</p>
         <button onClick={() => navigate('/')}>Back to playlists</button>
@@ -204,7 +204,7 @@ export function PlaylistDetail() {
       </header>
 
       {entries.length === 0 ? (
-        <div className="center">
+        <div className="pane">
           <h1>Nothing here yet</h1>
           <p>Add tracks from your phone — the library lives on the device.</p>
         </div>

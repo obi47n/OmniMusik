@@ -35,29 +35,33 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
+      - id: account
+        run: echo "id=$(aws sts get-caller-identity --query Account --output text)" >> "$GITHUB_OUTPUT"
 
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # Jib builds and pushes the image with no Docker daemon, and layers it so a
+      # source-only change re-pushes kilobytes. Tagged with the commit so every
+      # deployment names exactly what it runs; :latest is for a person's convenience.
       - name: Build and push
         working-directory: backend
-        env:
-          REGISTRY: ${{ steps.ecr.outputs.registry }}
         run: |
-          IMAGE="$REGISTRY/omnimusik-api"
-          # App Runner runs x86_64, and GitHub's ubuntu runners are x86_64 too, so no
-          # cross-build is needed. Building on an arm64 machine would need buildx.
-          docker build -t "$IMAGE:${{ github.sha }}" -t "$IMAGE:latest" .
-          docker push "$IMAGE:${{ github.sha }}"
-          docker push "$IMAGE:latest"
+          IMAGE="${{ steps.account.outputs.id }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/omnimusik-api"
+          ./mvnw -B -q -DskipTests compile jib:build \
+            -Dimage.repository="$IMAGE" \
+            -Djib.to.tags=latest,${{ github.sha }} \
+            -Djib.to.auth.username=AWS \
+            -Djib.to.auth.password="$(aws ecr get-login-password --region ${{ env.AWS_REGION }})"
 
-      # The service has auto_deployments_enabled, so pushing :latest is usually
-      # enough. This makes the rollout explicit rather than implicit.
+      # ECS Express Mode has no Terraform resource, so the rollout is one script that
+      # looks every input up by name. Passing the SHA is what makes it a rollout at
+      # all -- ECS resolves the image when a deployment starts, not when a tag moves.
       - name: Roll out
-        run: |
-          ARN=$(aws apprunner list-services \
-            --query "ServiceSummaryList[?ServiceName=='omnimusik-api'].ServiceArn" \
-            --output text)
-          [ -n "$ARN" ] && aws apprunner start-deployment --service-arn "$ARN"
+        run: IMAGE_TAG=${{ github.sha }} ./scripts/deploy-api.sh
 
   web:
     name: Web

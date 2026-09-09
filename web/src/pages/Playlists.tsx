@@ -111,7 +111,7 @@ export function Playlists() {
       {playlists === null && <p className="muted">Loading…</p>}
 
       {playlists?.length === 0 && (
-        <div className="center">
+        <div className="pane">
           <h1>No playlists yet</h1>
           <p>Create one here, or build it on your phone — they are the same list.</p>
         </div>
