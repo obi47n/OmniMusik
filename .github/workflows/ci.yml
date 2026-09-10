@@ -164,7 +164,7 @@ jobs:
 
       # The shared scheme disables parallel testing on purpose; see CLAUDE.md.
       - name: Test
-        timeout-minutes: 25
+        timeout-minutes: 12
         run: |
           xcodebuild test-without-building \
             -project OmniMusik/OmniMusik.xcodeproj \
@@ -173,6 +173,32 @@ jobs:
             -derivedDataPath DerivedData \
             -resultBundlePath TestResults.xcresult \
             2>&1 | tee test-output.log | grep -E "Test Case|Test Suite|error:|Executed|\*\* TEST|Testing (started|failed)" ; exit ${PIPESTATUS[0]}
+
+      # Runs even when Test hangs. Locally the suite passes in every configuration
+      # tried -- two-step, single-step, fresh build output, a freshly erased
+      # simulator -- and on the runner not one test starts, which means the answer
+      # is only visible from inside the runner: what xcodebuild last printed, what
+      # the app process is doing, and what the simulator's own log says about the
+      # app and XCTest. Printed straight into the job log, so no artifact needs
+      # downloading to read it.
+      - name: Diagnose
+        if: always()
+        timeout-minutes: 4
+        run: |
+          echo "::group::last 60 lines xcodebuild wrote"
+          tail -60 test-output.log 2>/dev/null || echo "(no test-output.log)"
+          echo "::endgroup::"
+          echo "::group::processes"
+          pgrep -fl "OmniMusik|xctest|XCTest|simctl|CoreSimulator" || echo "(none)"
+          echo "::endgroup::"
+          echo "::group::stack sample of the app, if it is running"
+          sample OmniMusik 3 -file /tmp/sample.txt >/dev/null 2>&1 && grep -m1 -A 40 "Call graph" /tmp/sample.txt || echo "(no OmniMusik process to sample)"
+          echo "::endgroup::"
+          echo "::group::simulator log, last 10 minutes, app + XCTest"
+          xcrun simctl spawn booted log show --last 10m \
+            --predicate 'process == "OmniMusik" OR process == "xctest" OR subsystem CONTAINS "xctest" OR subsystem CONTAINS "XCTest" OR eventMessage CONTAINS "OmniMusik"' 2>/dev/null \
+            | grep -vE "^Timestamp" | tail -120 | cut -c1-260 || echo "(no simulator log)"
+          echo "::endgroup::"
 
       # `failure()` alone skipped this on the run that mattered most: a job cut by
       # its timeout counts as cancelled, not failed, and that is precisely the run
