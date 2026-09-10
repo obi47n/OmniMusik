@@ -753,10 +753,10 @@ UI/         library, playlists, now playing, mini player</div>
   <div class="qa">
     <p class="q">What is not finished?</p>
     <p>
-      Apple Music playback is stubbed — the developer account is too new for the
-      service to be enabled, so that source reports itself unavailable rather than
-      pretending. The web client cannot play audio and does not offer to. Say both
-      plainly; being precise about what is real is worth more than claiming more.
+      The web client cannot play audio and does not offer to — browsers can play
+      none of the three sources, so it is a control plane by design. Say that
+      plainly; being precise about what a piece is for is worth more than claiming
+      more.
     </p>
   </div>
 </section>
@@ -769,7 +769,6 @@ UI/         library, playlists, now playing, mini player</div>
   <div class="status-row"><span class="pill real">On device</span><span>Automatic playlist sync between phone and web</span></div>
   <div class="status-row"><span class="pill real">Tested</span><span>74 unit + 12 UI tests on iOS, 17 on the backend</span></div>
   <div class="status-row"><span class="pill real">Deployed</span><span>The whole stack on AWS: the API on ECS Express Mode with TLS, the web client on CloudFront, both signed in against a live Cognito pool</span></div>
-  <div class="status-row"><span class="pill no">Stubbed</span><span>Apple Music playback, blocked on account provisioning</span></div>
   <div class="status-row"><span class="pill no">Not built</span><span>Android, and audio playback in the browser</span></div>
 
   <footer>
