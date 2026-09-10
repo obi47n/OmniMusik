@@ -69,7 +69,14 @@ jobs:
 
   ios:
     name: iOS
-    runs-on: macos-15
+    # macos-14, not the newest image: its default Xcode ships iOS 18 simulators,
+    # which is the OS the app targets and the one the suite is verified against on
+    # a device. macos-15's default Xcode carries only iOS 26 runtimes, and the UI
+    # suite hung there for an hour, twice, on a simulator no local run had seen.
+    # Whether the app should also pass on iOS 26 is a real question -- but it is a
+    # compatibility task to schedule, not a reason for CI to test a different OS
+    # from the one the project pins.
+    runs-on: macos-14
     # A macOS minute costs ten Linux minutes, and a UI test waiting on a simulator
     # that never answers would otherwise run to GitHub's six-hour default. A clean
     # run is under forty minutes; anything past this is a hang, not a slow build.
@@ -121,8 +128,11 @@ jobs:
             -resultBundlePath TestResults.xcresult \
             2>&1 | grep -E "Test Case|Test Suite|error:|passed|failed|\*\* TEST" ; exit ${PIPESTATUS[0]}
 
+      # `failure()` alone skipped this on the run that mattered most: a job cut by
+      # its timeout counts as cancelled, not failed, and that is precisely the run
+      # whose bundle says where it hung.
       - name: Keep the result bundle
-        if: failure()
+        if: failure() || cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: ios-test-results
