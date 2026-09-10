@@ -133,6 +133,15 @@ Which API the phone uses is decided in `OmniMusik/Library/APIConfiguration.swift
 `baseURLString` set → that URL; `REPLACE_ME` → the Mac's backend in DEBUG builds,
 nothing in Release. It is currently set to the production API.
 
+## Personal site
+
+| What | Value |
+|---|---|
+| Site | https://obinnaduruaku.com (Cloudflare proxy, SSL mode Flexible, in front of S3 website hosting) |
+| Origin | `http://obinnaduruaku.com.s3-website-us-east-1.amazonaws.com` — bucket `obinnaduruaku.com` in Hold My Coffee |
+| Repo | `~/PersonalProjects/obinnaduruaku-site` (own Terraform state in `infra/`; deploy with `./scripts/deploy.sh`) |
+| Domain | Registered at Cloudflare (`fattouche`/`wren.ns.cloudflare.com`) |
+
 ## Published documents
 
 | Document | URL |
