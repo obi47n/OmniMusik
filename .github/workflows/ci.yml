@@ -132,14 +132,15 @@ jobs:
 
       # One xcodebuild invocation hung for an hour, twice, with nothing in its
       # log: not a single test had started. Package resolution, the simulator
-      # boot, code signing waiting on a keychain prompt, or the build itself --
-      # a single step cannot say which. So the run is four steps, each doing one
-      # thing, each with a timeout sized for that thing and raw output, and the
-      # first one that stalls is the diagnosis.
+      # boot, or the build itself -- a single step cannot say which. So the run
+      # is four steps, each doing one thing, each with a timeout sized for that
+      # thing, and the first one that stalls is the diagnosis. Splitting it showed
+      # the first three take under four minutes together.
       #
-      # Signing is off outright. A simulator build needs none, and an automatic
-      # signing attempt on a runner with no certificate can sit waiting on the
-      # keychain forever rather than fail.
+      # Signing is left at its default. A simulator build ad-hoc signs with no
+      # certificate and no keychain, which is what makes it launchable; turning
+      # signing off outright produced an unsigned bundle the simulator would not
+      # start, and xcodebuild then waited on a test host that never came up.
       - name: Resolve packages
         timeout-minutes: 10
         run: xcodebuild -resolvePackageDependencies -project OmniMusik/OmniMusik.xcodeproj -scheme OmniMusik
@@ -159,7 +160,6 @@ jobs:
             -scheme OmniMusik \
             -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }}" \
             -derivedDataPath DerivedData \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" \
             2>&1 | grep -vE "^\s*$|warning: |note: |^\s+\^|^[0-9]+$" ; exit ${PIPESTATUS[0]}
 
       # The shared scheme disables parallel testing on purpose; see CLAUDE.md.
@@ -172,15 +172,17 @@ jobs:
             -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }}" \
             -derivedDataPath DerivedData \
             -resultBundlePath TestResults.xcresult \
-            2>&1 | grep -E "Test Case|Test Suite|error:|Executed|\*\* TEST|Testing (started|failed)" ; exit ${PIPESTATUS[0]}
+            2>&1 | tee test-output.log | grep -E "Test Case|Test Suite|error:|Executed|\*\* TEST|Testing (started|failed)" ; exit ${PIPESTATUS[0]}
 
       # `failure()` alone skipped this on the run that mattered most: a job cut by
       # its timeout counts as cancelled, not failed, and that is precisely the run
       # whose bundle says where it hung.
-      - name: Keep the result bundle
+      - name: Keep the result bundle and the raw log
         if: failure() || cancelled()
         uses: actions/upload-artifact@v4
         with:
           name: ios-test-results
-          path: TestResults.xcresult
+          path: |
+            TestResults.xcresult
+            test-output.log
           retention-days: 7
