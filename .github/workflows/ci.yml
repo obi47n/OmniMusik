@@ -93,9 +93,11 @@ jobs:
       #
       # The project needs Xcode 16 or newer and an iOS 18 simulator, because iOS
       # 18 is the deployment target and the OS the suite is verified on. So: walk
-      # every Xcode on the runner, ask each which iOS runtimes it has, take the
-      # first that satisfies both, and print the whole table either way -- a
-      # failure that lists what was available is a failure somebody can act on.
+      # every Xcode on the runner, ask which iOS runtimes exist (simulator runtimes
+      # are installed per machine, not per Xcode -- every row lists the same set,
+      # which is expected), take the first Xcode >= 16 with an iOS 18 runtime, and
+      # print the whole table either way -- a failure that lists what was available
+      # is a failure somebody can act on.
       - name: Select an Xcode with an iOS 18 simulator
         id: sim
         run: |
@@ -128,24 +130,49 @@ jobs:
           sudo xcode-select -s "$XCODE"
           echo "name=$DEVICE" >> "$GITHUB_OUTPUT"
 
-      # The shared scheme disables parallel testing on purpose; see CLAUDE.md.
+      # One xcodebuild invocation hung for an hour, twice, with nothing in its
+      # log: not a single test had started. Package resolution, the simulator
+      # boot, code signing waiting on a keychain prompt, or the build itself --
+      # a single step cannot say which. So the run is four steps, each doing one
+      # thing, each with a timeout sized for that thing and raw output, and the
+      # first one that stalls is the diagnosis.
       #
-      # Not -quiet. It hid every "Test Case ... started" line, so a suite that was
-      # timing out one assertion at a time looked, from outside, exactly like a
-      # build that was merely slow -- for forty minutes. The per-test lines are the
-      # only live signal a macOS runner gives, and they are worth the noise.
-      #
-      # The result bundle is kept and uploaded on failure. Without it a failed run
-      # leaves nothing but the console text; with it the element hierarchy of every
-      # failed UI test can be exported locally, which is how those get diagnosed.
-      - name: Test
+      # Signing is off outright. A simulator build needs none, and an automatic
+      # signing attempt on a runner with no certificate can sit waiting on the
+      # keychain forever rather than fail.
+      - name: Resolve packages
+        timeout-minutes: 10
+        run: xcodebuild -resolvePackageDependencies -project OmniMusik/OmniMusik.xcodeproj -scheme OmniMusik
+
+      - name: Boot the simulator
+        timeout-minutes: 5
         run: |
-          xcodebuild test \
+          xcrun simctl boot "${{ steps.sim.outputs.name }}" || true
+          xcrun simctl bootstatus "${{ steps.sim.outputs.name }}" -b
+          xcrun simctl list devices booted
+
+      - name: Build for testing
+        timeout-minutes: 25
+        run: |
+          xcodebuild build-for-testing \
             -project OmniMusik/OmniMusik.xcodeproj \
             -scheme OmniMusik \
             -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }}" \
+            -derivedDataPath DerivedData \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" \
+            2>&1 | grep -vE "^\s*$|warning: |note: |^\s+\^|^[0-9]+$" ; exit ${PIPESTATUS[0]}
+
+      # The shared scheme disables parallel testing on purpose; see CLAUDE.md.
+      - name: Test
+        timeout-minutes: 25
+        run: |
+          xcodebuild test-without-building \
+            -project OmniMusik/OmniMusik.xcodeproj \
+            -scheme OmniMusik \
+            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }}" \
+            -derivedDataPath DerivedData \
             -resultBundlePath TestResults.xcresult \
-            2>&1 | grep -E "Test Case|Test Suite|error:|passed|failed|\*\* TEST" ; exit ${PIPESTATUS[0]}
+            2>&1 | grep -E "Test Case|Test Suite|error:|Executed|\*\* TEST|Testing (started|failed)" ; exit ${PIPESTATUS[0]}
 
       # `failure()` alone skipped this on the run that mattered most: a job cut by
       # its timeout counts as cancelled, not failed, and that is precisely the run
