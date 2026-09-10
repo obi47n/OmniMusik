@@ -313,11 +313,11 @@
 <div class="wrap">
 
 <header class="masthead">
-  <div class="eyebrow">Interview study · plain version</div>
+  <div class="eyebrow">Project overview</div>
   <h1>OmniMusik Field Guide</h1>
   <p class="standfirst">
     The whole project in about ten minutes: what it does, the one problem that makes
-    it hard, and the answers to the questions you will actually be asked.
+    it hard, and the decisions that follow from it.
   </p>
 </header>
 
@@ -330,13 +330,11 @@
   <a href="#sync">Sync</a>
   <a href="#wall">The Spotify wall</a>
   <a href="#stack">The stack</a>
-  <a href="#questions">Five questions</a>
-  <a href="#status">What is real</a>
+  <a href="#status">What is built</a>
 </nav>
 
 <section id="what">
   <h2>What it is</h2>
-  <p class="asked">"Tell me about this project."</p>
 
   <p>
     An iOS app that puts three music sources into one library, one queue, one search
@@ -363,7 +361,6 @@
 
 <section id="hard">
   <h2>The hard part</h2>
-  <p class="asked">"What made this technically difficult?"</p>
 
   <p>
     A local MP3 and an Apple Music track look identical in a list. Underneath, they
@@ -412,7 +409,7 @@
   </p>
 
   <div class="answer">
-    <span class="label">Say this</span>
+    <span class="label">In short</span>
     <p>
       "Effects are local-only, and that is structural, not a to-do. Streaming audio is
       decoded in a process I do not control, so there is no point at which I could
@@ -424,7 +421,6 @@
 
 <section id="protocols">
   <h2>Two protocols, kept apart</h2>
-  <p class="asked">"Walk me through your architecture."</p>
 
   <p>This is the centre of the whole design. There are two questions, and they are not the same question:</p>
 
@@ -475,7 +471,6 @@ UI/         library, playlists, now playing, mini player</div>
 
 <section id="play">
   <h2>What happens when you tap a song</h2>
-  <p class="asked">"Walk me through a request." (The mobile version of that question.)</p>
 
   <div class="flow">tap a row
   → coordinator looks at track.source
@@ -515,7 +510,6 @@ UI/         library, playlists, now playing, mini player</div>
 
 <section id="playlists">
   <h2>Playlists</h2>
-  <p class="asked">"How did you model that?"</p>
 
   <p>
     A playlist has to hold an MP3, an Apple Music track and a Spotify track in one
@@ -546,7 +540,7 @@ UI/         library, playlists, now playing, mini player</div>
   </ul>
 
   <div class="answer">
-    <span class="label">The snapshot is the part to defend</span>
+    <span class="label">Why the snapshot matters</span>
     <p>
       Without it, a playlist of Apple Music tracks becomes a list of blank rows the
       moment the subscription lapses or the network drops. A playlist should be able
@@ -565,7 +559,6 @@ UI/         library, playlists, now playing, mini player</div>
 
 <section id="sync">
   <h2>Sync, and why it is not just "save to the server"</h2>
-  <p class="asked">"How do you handle the same data on two devices?"</p>
 
   <p>Three pieces, each solving one problem:</p>
 
@@ -606,7 +599,7 @@ UI/         library, playlists, now playing, mini player</div>
   </p>
 
   <div class="answer">
-    <span class="label">The line to remember</span>
+    <span class="label">In one line</span>
     <p>
       "A version number only means something inside the history that issued it."
     </p>
@@ -615,7 +608,6 @@ UI/         library, playlists, now playing, mini player</div>
 
 <section id="wall">
   <h2>The Spotify wall</h2>
-  <p class="asked">"Tell me about a mistake." — this is your best answer.</p>
 
   <p>
     <strong>The symptom:</strong> playing an MP3 and skipping to a Spotify track threw
@@ -658,7 +650,7 @@ UI/         library, playlists, now playing, mini player</div>
   </p>
 
   <div class="answer">
-    <span class="label">The lesson, in one sentence</span>
+    <span class="label">The lesson</span>
     <p>
       Reasoning about another process's lifecycle from inside your own is guessing,
       however good the guess sounds — and the logger that would have saved three
@@ -669,7 +661,6 @@ UI/         library, playlists, now playing, mini player</div>
 
 <section id="stack">
   <h2>The rest of the stack, briefly</h2>
-  <p class="asked">"Is this just an iOS app?"</p>
 
   <div class="scroller">
     <table>
@@ -698,72 +689,8 @@ UI/         library, playlists, now playing, mini player</div>
   </p>
 </section>
 
-<section id="questions">
-  <h2>Five questions you will get</h2>
-  <p class="asked">Read this section last, the night before.</p>
-
-  <div class="qa">
-    <p class="q">Why not React Native, so you get Android for free?</p>
-    <p>
-      Apple Music has no playback SDK on Android, so "cross-platform" was never going
-      to deliver real Apple Music playback there. And the effects chain — the most
-      interesting part — would have meant bridging native audio anyway. Going native
-      removed the bridge.
-    </p>
-  </div>
-
-  <div class="qa">
-    <p class="q">Why can't the effects work on streaming?</p>
-    <p>
-      Effects are an audio graph applied to samples. Streaming audio is decrypted and
-      decoded inside another process that hands out no samples — only "play", "pause",
-      "seek". There is no point in the pipeline where a filter could sit. It is a
-      property of the source, and the code says so.
-    </p>
-  </div>
-
-  <div class="qa">
-    <p class="q">Why ECS Express Mode instead of full ECS or Lambda?</p>
-    <p>
-      Full ECS means hand-wiring a network, a load balancer and task definitions —
-      days that do not buy proportional signal with two clients still to build.
-      Lambda was rejected because Spring Boot cold starts there are genuinely bad
-      without extra build complexity. I picked App Runner first for exactly this
-      reason; AWS then closed it to new services, and Express Mode is the same
-      bargain on ECS. The move cost an afternoon and a network change. The signal is
-      the infrastructure being in Terraform, and being able to say: managed runtime
-      on purpose, here is what it cost when the platform moved, and here is when I
-      would go further.
-    </p>
-  </div>
-
-  <div class="qa">
-    <p class="q">What would you do differently?</p>
-    <p>
-      Measure before fixing. The Spotify handoff cost three wrong fixes because I
-      reasoned from the outside instead of instrumenting. And I would add database
-      migrations from the first deploy rather than the second — the production config
-      validated the schema and nothing created it, so the service crash-looped against
-      an empty database until I added Flyway — and then the deploy target itself
-      disappeared under me when AWS closed App Runner, which is its own lesson about
-      not treating a managed service as permanent.
-    </p>
-  </div>
-
-  <div class="qa">
-    <p class="q">What is not finished?</p>
-    <p>
-      The web client cannot play audio and does not offer to — browsers can play
-      none of the three sources, so it is a control plane by design. Say that
-      plainly; being precise about what a piece is for is worth more than claiming
-      more.
-    </p>
-  </div>
-</section>
-
 <section id="status">
-  <h2>What is actually real</h2>
-  <p class="asked">Never overclaim. This is the list to be accurate from.</p>
+  <h2>What is built</h2>
 
   <div class="status-row"><span class="pill real">On device</span><span>Local library and import, playback, the effects chain, the Studio, lock screen controls, cross-source playlists, Spotify browsing and playback</span></div>
   <div class="status-row"><span class="pill real">On device</span><span>Automatic playlist sync between phone and web</span></div>
@@ -772,9 +699,9 @@ UI/         library, playlists, now playing, mini player</div>
   <div class="status-row"><span class="pill no">Not built</span><span>Android, and audio playback in the browser</span></div>
 
   <footer>
-    The long version — full reasoning, rejected alternatives, and the deeper audio and
-    concurrency detail — is in the main interview notes and in
-    <code>DECISIONS.md</code>. This page is the map; those are the territory.
+    The long version, with full reasoning and the alternatives that were rejected, is
+    in <code>DECISIONS.md</code>, and the architecture is drawn out in the system
+    design document. This page is the map; those are the territory.
   </footer>
 </section>
 

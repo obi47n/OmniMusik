@@ -1,0 +1,482 @@
+<title>OmniMusik Talking Points</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    /* Taken from the app's own Theme.swift, so the page and the product read as
+       one thing. Neutrals carry a slight violet bias rather than sitting at pure
+       grey. */
+    --ground: #faf9fc;
+    --surface: #ffffff;
+    --raised: #f3f1f8;
+    --line: #e4e0ec;
+    --ink: #1a1820;
+    --ink-2: #56515f;
+    --ink-3: #857f92;
+    --accent: #6d28d9;
+    --accent-soft: #f1e9fe;
+    --warn: #b45309;
+    --warn-soft: #fdf3e3;
+
+    --display: "Archivo", system-ui, -apple-system, sans-serif;
+    --body: "Public Sans", system-ui, -apple-system, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0e0e10;
+      --surface: #1a1a1e;
+      --raised: #232329;
+      --line: #2e2e36;
+      --ink: #ebebeb;
+      --ink-2: #a5a2ad;
+      --ink-3: #6f6b78;
+      --accent: #b57bff;
+      --accent-soft: #241b33;
+      --warn: #e0a35c;
+      --warn-soft: #2a2015;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0e0e10;
+    --surface: #1a1a1e;
+    --raised: #232329;
+    --line: #2e2e36;
+    --ink: #ebebeb;
+    --ink-2: #a5a2ad;
+    --ink-3: #6f6b78;
+    --accent: #b57bff;
+    --accent-soft: #241b33;
+    --warn: #e0a35c;
+    --warn-soft: #2a2015;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16.5px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 0 22px 96px;
+  }
+
+  /* ---------- Masthead ---------- */
+
+  header.masthead {
+    padding: 56px 0 30px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 38px;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+
+  h1 {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: clamp(34px, 6vw, 46px);
+    line-height: 1.06;
+    letter-spacing: -0.022em;
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    font-size: 18px;
+    color: var(--ink-2);
+    margin: 0;
+    max-width: 60ch;
+  }
+
+  /* ---------- Contents ---------- */
+
+  nav.contents {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-bottom: 46px;
+  }
+
+  nav.contents a {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    text-decoration: none;
+    color: var(--ink-2);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 5px 12px;
+    background: var(--surface);
+  }
+
+  nav.contents a:hover,
+  nav.contents a:focus-visible {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  /* ---------- Sections ---------- */
+
+  section { margin-bottom: 52px; scroll-margin-top: 24px; }
+
+  h2 {
+    font-family: var(--display);
+    font-weight: 650;
+    font-size: 25px;
+    letter-spacing: -0.015em;
+    line-height: 1.2;
+    margin: 0 0 6px;
+    text-wrap: balance;
+  }
+
+  h3 {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 17.5px;
+    letter-spacing: -0.008em;
+    margin: 30px 0 6px;
+  }
+
+  p { margin: 0 0 15px; max-width: 68ch; }
+
+  /* The question this section answers. The document is organised by what you get
+     asked, not by how the code is laid out, so the question is the heading's
+     companion rather than a decorative label. */
+  .asked {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--ink-3);
+    margin: 0 0 18px;
+    padding-left: 13px;
+    border-left: 2px solid var(--accent);
+    max-width: 68ch;
+  }
+
+  strong { font-weight: 600; color: var(--ink); }
+  em { font-style: italic; color: var(--ink-2); }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: var(--raised);
+    padding: 1.5px 5px;
+    border-radius: 4px;
+  }
+
+  ul { margin: 0 0 15px; padding-left: 20px; max-width: 68ch; }
+  li { margin-bottom: 7px; }
+
+  /* ---------- Comparison tables ---------- */
+
+  .scroller { overflow-x: auto; margin: 0 0 18px; }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 460px;
+    font-size: 14.5px;
+  }
+
+  th, td {
+    text-align: left;
+    padding: 9px 14px 9px 0;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+
+  th {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: 11.5px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  td:first-child { color: var(--ink-2); white-space: nowrap; padding-right: 22px; }
+
+  /* ---------- The answer box ---------- */
+
+  .answer {
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 9px 9px 0;
+    padding: 14px 17px;
+    margin: 0 0 18px;
+  }
+
+  .answer .label {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 5px;
+  }
+
+  .answer p { margin: 0; }
+  .answer p + p { margin-top: 10px; }
+
+  .caution {
+    background: var(--warn-soft);
+    border-left-color: var(--warn);
+  }
+
+  .caution .label { color: var(--warn); }
+
+  /* ---------- Flow ---------- */
+
+  .flow {
+    font-family: var(--mono);
+    font-size: 13px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 15px 17px;
+    margin: 0 0 18px;
+    overflow-x: auto;
+    color: var(--ink-2);
+    line-height: 1.85;
+    white-space: pre;
+  }
+
+  /* ---------- Q&A ---------- */
+
+  .qa { border-top: 1px solid var(--line); padding-top: 18px; margin-top: 22px; }
+  .qa:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
+
+  .q {
+    font-family: var(--display);
+    font-weight: 600;
+    font-size: 16.5px;
+    margin: 0 0 7px;
+    color: var(--ink);
+  }
+
+  /* ---------- Status ---------- */
+
+  .status-row {
+    display: flex;
+    gap: 13px;
+    align-items: baseline;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+    font-size: 15px;
+  }
+
+  .pill {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 92px;
+    text-align: center;
+  }
+
+  .pill.real { background: var(--accent-soft); color: var(--accent); }
+  .pill.part { background: var(--warn-soft); color: var(--warn); }
+  .pill.no { background: var(--raised); color: var(--ink-3); }
+
+  footer {
+    margin-top: 56px;
+    padding-top: 22px;
+    border-top: 1px solid var(--line);
+    color: var(--ink-3);
+    font-size: 14px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+<style>
+  /* The prompt a question answers, kept quiet: it points back at the field guide
+     rather than repeating it. */
+  .ctx { font-family: var(--mono); font-size: 12px; color: var(--ink-3); margin: 0 0 12px; }
+  .qa .q { font-size: 18px; }
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <div class="eyebrow">Interview preparation &middot; private</div>
+  <h1>OmniMusik Talking Points</h1>
+  <p class="standfirst">
+    The night-before read. Every question this project attracts, the answer worth
+    giving, and the list to stay accurate from. The field guide explains the project;
+    this one is about saying it out loud.
+  </p>
+</header>
+
+<nav class="contents">
+  <a href="#asked">What you get asked</a>
+  <a href="#five">Five more questions</a>
+  <a href="#status">Never overclaim</a>
+</nav>
+
+<section id="asked">
+  <h2>What you get asked, and what to say</h2>
+  <p class="ctx">In the order the conversation usually runs.</p>
+
+  <div class="qa">
+    <p class="q">"Tell me about this project."</p>
+    <p class="ctx">Covered in the field guide under &ldquo;What it is&rdquo;.</p>
+    <div class="answer">
+      <span class="label">One-sentence version</span>
+      <p>Three music sources that have almost nothing in common, hidden behind one interface that does not pretend they are the same.</p>
+    </div>
+  </div>
+  <div class="qa">
+    <p class="q">"What made this technically difficult?"</p>
+    <p class="ctx">Covered in the field guide under &ldquo;The hard part&rdquo;.</p>
+    <div class="answer">
+      <span class="label">Say this</span>
+      <p>"Effects are local-only, and that is structural, not a to-do. Streaming audio is decoded in a process I do not control, so there is no point at which I could apply a filter. The model encodes that as a property of the source rather than leaving it as a comment."</p>
+    </div>
+  </div>
+  <div class="qa">
+    <p class="q">"Walk me through your architecture."</p>
+    <p class="ctx">Covered in the field guide under &ldquo;Two protocols, kept apart&rdquo;.</p>
+    <div class="answer">
+      <span class="label">Why they stay separate</span>
+      <p>They do not line up one-to-one. If your Apple Music subscription lapses you can still <em>browse</em> the catalogue but not <em>play</em> it — browsable, not playable. And a provider can still play a track its source no longer lists.</p>
+      <p>Merge them and you get one interface that has to lie about at least one of those states.</p>
+    </div>
+  </div>
+  <div class="qa">
+    <p class="q">"Walk me through a request." (The mobile version of that question.)</p>
+    <p class="ctx">Covered in the field guide under &ldquo;What happens when you tap a song&rdquo;.</p>  </div>
+  <div class="qa">
+    <p class="q">"How did you model that?"</p>
+    <p class="ctx">Covered in the field guide under &ldquo;Playlists&rdquo;.</p>
+    <div class="answer">
+      <span class="label">The snapshot is the part to defend</span>
+      <p>Without it, a playlist of Apple Music tracks becomes a list of blank rows the moment the subscription lapses or the network drops. A playlist should be able to describe itself without a server's permission.</p>
+    </div>
+  </div>
+  <div class="qa">
+    <p class="q">"How do you handle the same data on two devices?"</p>
+    <p class="ctx">Covered in the field guide under &ldquo;Sync, and why it is not just "save to the server"&rdquo;.</p>
+    <div class="answer">
+      <span class="label">The line to remember</span>
+      <p>"A version number only means something inside the history that issued it."</p>
+    </div>
+  </div>
+  <div class="qa">
+    <p class="q">"Tell me about a mistake." — this is your best answer.</p>
+    <p class="ctx">Covered in the field guide under &ldquo;The Spotify wall&rdquo;.</p>
+    <div class="answer caution">
+      <span class="label">The real cause</span>
+      <p>Spotify audio plays in Spotify's process. While your MP3 plays, Spotify makes no sound, so iOS suspends it. A suspended app cannot accept a connection, and the only way to wake it is to launch it — which iOS permits only from the foreground.</p>
+      <p>There is no entitlement that keeps another app alive. This is a platform constraint, not a bug.</p>
+    </div>
+
+    <div class="answer">
+      <span class="label">The lesson, in one sentence</span>
+      <p>Reasoning about another process's lifecycle from inside your own is guessing, however good the guess sounds — and the logger that would have saved three attempts cost twenty minutes.</p>
+    </div>
+  </div>
+  <div class="qa">
+    <p class="q">"Is this just an iOS app?"</p>
+    <p class="ctx">Covered in the field guide under &ldquo;The rest of the stack, briefly&rdquo;.</p>  </div>
+</section>
+
+<section id="five">
+  <h2>Five more questions you will get</h2>
+  <p class="ctx">Read this section last.</p>
+
+<div class="qa">
+    <p class="q">Why not React Native, so you get Android for free?</p>
+    <p>
+      Apple Music has no playback SDK on Android, so "cross-platform" was never going
+      to deliver real Apple Music playback there. And the effects chain — the most
+      interesting part — would have meant bridging native audio anyway. Going native
+      removed the bridge.
+    </p>
+  </div>
+<div class="qa">
+    <p class="q">Why can't the effects work on streaming?</p>
+    <p>
+      Effects are an audio graph applied to samples. Streaming audio is decrypted and
+      decoded inside another process that hands out no samples — only "play", "pause",
+      "seek". There is no point in the pipeline where a filter could sit. It is a
+      property of the source, and the code says so.
+    </p>
+  </div>
+<div class="qa">
+    <p class="q">Why ECS Express Mode instead of full ECS or Lambda?</p>
+    <p>
+      Full ECS means hand-wiring a network, a load balancer and task definitions —
+      days that do not buy proportional signal with two clients still to build.
+      Lambda was rejected because Spring Boot cold starts there are genuinely bad
+      without extra build complexity. I picked App Runner first for exactly this
+      reason; AWS then closed it to new services, and Express Mode is the same
+      bargain on ECS. The move cost an afternoon and a network change. The signal is
+      the infrastructure being in Terraform, and being able to say: managed runtime
+      on purpose, here is what it cost when the platform moved, and here is when I
+      would go further.
+    </p>
+  </div>
+<div class="qa">
+    <p class="q">What would you do differently?</p>
+    <p>
+      Measure before fixing. The Spotify handoff cost three wrong fixes because I
+      reasoned from the outside instead of instrumenting. And I would add database
+      migrations from the first deploy rather than the second — the production config
+      validated the schema and nothing created it, so the service crash-looped against
+      an empty database until I added Flyway — and then the deploy target itself
+      disappeared under me when AWS closed App Runner, which is its own lesson about
+      not treating a managed service as permanent.
+    </p>
+  </div>
+<div class="qa">
+    <p class="q">What is not finished?</p>
+    <p>
+      The web client cannot play audio and does not offer to — browsers can play
+      none of the three sources, so it is a control plane by design. Say that
+      plainly; being precise about what a piece is for is worth more than claiming
+      more.
+    </p>
+  </div>
+</section>
+
+<section id="status">
+  <h2>Never overclaim</h2>
+  <p class="ctx">This is the list to be accurate from. Being precise about what is real
+    is worth more than claiming more, and it is the one thing that cannot be recovered
+    once an interviewer catches it.</p>
+
+  <div class="status-row"><span class="pill real">On device</span><span>Local library and import, playback, the effects chain, the Studio, lock screen controls, cross-source playlists, Spotify browsing and playback</span></div>
+  <div class="status-row"><span class="pill real">On device</span><span>Automatic playlist sync between phone and web</span></div>
+  <div class="status-row"><span class="pill real">Tested</span><span>74 unit + 12 UI tests on iOS, 17 on the backend</span></div>
+  <div class="status-row"><span class="pill real">Deployed</span><span>The whole stack on AWS: the API on ECS Express Mode with TLS, the web client on CloudFront, both signed in against a live Cognito pool</span></div>
+  <div class="status-row"><span class="pill no">Not built</span><span>Android, and audio playback in the browser</span></div>
+
+  <footer>
+    The reasoning behind each decision, with the alternatives rejected, is in
+    <code>DECISIONS.md</code>. The project itself is explained in the OmniMusik Field
+    Guide and the system design document.
+  </footer>
+</section>
+
+</div>
