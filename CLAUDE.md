@@ -195,7 +195,10 @@ does not.
 ## Reference documents
 
 `docs/wiki/` is the operational wiki: every URL, identifier, role, command and cost,
-and the order to tear things down in. `docs/talking-points.html` is the interview-prep companion to the field guide, kept
+and the order to tear things down in. `docs/showcase.html` is the screenshot showcase; its images are base64-embedded
+because artifacts cannot load images from external hosts, so rebuild it from
+`obinnaduruaku-site/assets/` rather than editing the HTML by hand.
+`docs/talking-points.html` is the interview-prep companion to the field guide, kept
 separate so the field guide reads as a plain project explainer. `docs/system-design.html` is the system design
 document with diagrams, published at https://claude.ai/code/artifact/140c4904-8d3b-42ac-ab08-b67a45d5d6c4.
 Keep both current when infrastructure changes.

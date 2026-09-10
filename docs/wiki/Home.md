@@ -18,6 +18,7 @@ keys never appear here; the page that mentions one says where it actually lives.
 | Document | Purpose |
 |---|---|
 | [System design](../system-design.html) | Architecture with diagrams: context, iOS layers, playback, sync, deployment ([published](https://claude.ai/code/artifact/140c4904-8d3b-42ac-ab08-b67a45d5d6c4)) |
+| [Screens](../showcase.html) | Screenshot showcase of the iOS app and web companion, images embedded ([published](https://claude.ai/code/artifact/98c83a0d-3d60-4159-8a4d-9adb123a43ac)) |
 | [Field guide](../field-guide.html) | The project in ten minutes, for interview study ([published](https://claude.ai/code/artifact/c0676296-9d95-4f78-92c4-9017d1a53920)) |
 | [Talking points](../talking-points.html) | Interview preparation: the questions this project attracts and the answers worth giving ([published](https://claude.ai/code/artifact/70922f61-74bf-4fa4-8068-eb2feb786aa3)) |
 | [Interview notes](../interview-notes.html) | The long-form study document ([published](https://claude.ai/code/artifact/f4b69ae6-fc9c-477a-b3d9-92eb0f566fa4)) |
