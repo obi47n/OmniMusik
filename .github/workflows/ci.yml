@@ -84,30 +84,49 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # The runner's default Xcode, on purpose. Selecting /Applications/Xcode_16.app
-      # looked safer and was the whole problem: on the macos-15 image only the default
-      # Xcode has an iOS simulator runtime installed, and the alternate versions ship
-      # with none -- "Unable to find a device" with an empty list of simulators, in
-      # under a minute, before building anything. The deployment target pins the
-      # minimum iOS; any simulator at or above it will do.
+      # Choose an Xcode by what it can actually do, not by its path or by which one
+      # the image makes default. Three runs failed three different ways on
+      # assumptions here: /Applications/Xcode_16.app on macos-15 had no simulator
+      # runtime at all; the default on macos-15 is Xcode 26, whose only runtime is
+      # iOS 26, where the UI suite hangs; the default on macos-14 is Xcode 15,
+      # which cannot read a project saved with Xcode 16 synchronized folders.
       #
-      # The device is chosen from what is actually installed rather than named, for
-      # the same reason: image updates rename the current iPhone, and a pinned name
-      # is a failure waiting for the next runner refresh.
-      - name: Pick a simulator
+      # The project needs Xcode 16 or newer and an iOS 18 simulator, because iOS
+      # 18 is the deployment target and the OS the suite is verified on. So: walk
+      # every Xcode on the runner, ask each which iOS runtimes it has, take the
+      # first that satisfies both, and print the whole table either way -- a
+      # failure that lists what was available is a failure somebody can act on.
+      - name: Select an Xcode with an iOS 18 simulator
         id: sim
         run: |
-          NAME=$(xcrun simctl list devices available -j | python3 -c '
-          import json, sys
-          runtimes = json.load(sys.stdin)["devices"]
-          ios = sorted(k for k in runtimes if "iOS" in k)
-          for key in reversed(ios):
-              phones = [d["name"] for d in runtimes[key] if d["name"].startswith("iPhone")]
-              if phones:
-                  print(phones[0]); break
-          ')
-          echo "Using: $NAME"
-          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          python3 - <<'PY' | tee /tmp/xcode-choice.txt
+          import json, os, re, subprocess, sys
+          chosen = None
+          for app in sorted(p for p in os.listdir('/Applications') if re.match(r'Xcode.*\.app$', p)):
+              path = f'/Applications/{app}'
+              dev = f'{path}/Contents/Developer'
+              try:
+                  ver = subprocess.run([f'{dev}/usr/bin/xcodebuild', '-version'], capture_output=True, text=True,
+                                       env={**os.environ, 'DEVELOPER_DIR': dev}).stdout.split()[1]
+                  raw = subprocess.run(['xcrun', 'simctl', 'list', 'devices', 'available', '-j'], capture_output=True, text=True,
+                                       env={**os.environ, 'DEVELOPER_DIR': dev}).stdout
+                  devices = json.loads(raw)['devices']
+              except Exception as e:
+                  print(f'{app:28} unreadable ({e})'); continue
+              runtimes = {k.split('.')[-1]: [d['name'] for d in v if d['name'].startswith('iPhone')]
+                          for k, v in devices.items() if 'iOS' in k and v}
+              print(f'{app:28} Xcode {ver:8} iOS runtimes: {", ".join(sorted(runtimes)) or "none"}')
+              major = int(ver.split('.')[0])
+              ios18 = [(k, v) for k, v in runtimes.items() if k.startswith('iOS-18') and v]
+              if chosen is None and major >= 16 and ios18:
+                  chosen = (path, ios18[0][1][0])
+          if not chosen:
+              print('No Xcode on this runner has both Xcode >= 16 and an iOS 18 simulator.', file=sys.stderr); sys.exit(1)
+          print(f'CHOSEN {chosen[0]} {chosen[1]}')
+          PY
+          read -r _ XCODE DEVICE <<<"$(grep '^CHOSEN' /tmp/xcode-choice.txt)"
+          sudo xcode-select -s "$XCODE"
+          echo "name=$DEVICE" >> "$GITHUB_OUTPUT"
 
       # The shared scheme disables parallel testing on purpose; see CLAUDE.md.
       #
